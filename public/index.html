@@ -563,10 +563,20 @@ async function loadData() {
     try {
         const res = await fetch('/api/data');
         const d = await res.json();
-        if (d.success && d.data && d.data.income && d.data.income.length > 0) {
+        if (d.success && d.data && Array.isArray(d.data.income)) {
+            // Cloud has data OR empty array - always use cloud
             data.income = d.data.income;
             data.expenses = d.data.expenses || [];
             console.log('[DATA] Loaded from cloud:', data.income.length, 'income');
+            // Save cloud data to local as backup
+            const saveObj = {
+                version: STORAGE_VERSION,
+                income: data.income,
+                expenses: data.expenses,
+                checksum: calcChecksum({ income: data.income, expenses: data.expenses }),
+                savedAt: new Date().toISOString()
+            };
+            localStorage.setItem(DATA_KEYS.main, JSON.stringify(saveObj));
             return;
         }
     } catch(e) {
