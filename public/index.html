@@ -537,42 +537,57 @@ function isValidData(d) {
 
 // Save data with triple backup + checksum
 function saveData() {
+    // Save to MongoDB Cloud (all devices see same data)
+    fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ income: data.income, expenses: data.expenses })
+    }).catch(e => console.warn('[DATA] Save error:', e));
+
+    // Also save locally for offline backup
     const saveObj = {
         version: STORAGE_VERSION,
         income: data.income,
         expenses: data.expenses,
         checksum: calcChecksum({ income: data.income, expenses: data.expenses }),
-        savedAt: new Date().toISOString(),
-        locked: true
+        savedAt: new Date().toISOString()
     };
-    const str = JSON.stringify(saveObj);
-    localStorage.setItem(DATA_KEYS.main, str);
+    localStorage.setItem(DATA_KEYS.main, JSON.stringify(saveObj));
     const bak1Str = localStorage.getItem(DATA_KEYS.bak1);
     if (bak1Str) localStorage.setItem(DATA_KEYS.bak2, bak1Str);
-    localStorage.setItem(DATA_KEYS.bak1, str);
+    localStorage.setItem(DATA_KEYS.bak1, JSON.stringify(saveObj));
 }
 
-function loadData() {
+async function loadData() {
+    // Try MongoDB Cloud first
+    try {
+        const res = await fetch('/api/data');
+        const d = await res.json();
+        if (d.success && d.data && d.data.income && d.data.income.length > 0) {
+            data.income = d.data.income;
+            data.expenses = d.data.expenses || [];
+            console.log('[DATA] Loaded from cloud:', data.income.length, 'income');
+            return;
+        }
+    } catch(e) {
+        console.warn('[DATA] Cloud load failed, trying local:', e.message);
+    }
+
+    // Fallback to localStorage
     let loaded = null;
     const mainStr = localStorage.getItem(DATA_KEYS.main);
     if (mainStr) {
-        try {
-            const parsed = JSON.parse(mainStr);
-            if (isValidData(parsed) && calcChecksum({ income: parsed.income, expenses: parsed.expenses }) === parsed.checksum) {
-                loaded = parsed;
-            }
-        } catch(e) {}
+        try { const parsed = JSON.parse(mainStr); if (isValidData(parsed)) loaded = parsed; } catch(e) {}
     }
     if (!loaded) {
         const bak1Str = localStorage.getItem(DATA_KEYS.bak1);
         if (bak1Str) { try { const parsed = JSON.parse(bak1Str); if (isValidData(parsed)) loaded = parsed; } catch(e) {} }
     }
-    if (!loaded) {
-        const bak2Str = localStorage.getItem(DATA_KEYS.bak2);
-        if (bak2Str) { try { const parsed = JSON.parse(bak2Str); if (isValidData(parsed)) loaded = parsed; } catch(e) {} }
-    }
     if (loaded) {
         data.income = loaded.income; data.expenses = loaded.expenses;
+        console.log('[DATA] Loaded from local backup');
+        // Sync local data to cloud
+        saveData();
     } else {
         createSampleData();
     }
