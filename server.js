@@ -4,7 +4,7 @@ const { MongoClient } = require('mongodb');
 const app = express();
 const PORT = process.env.PORT || 3010;
 
-const MONGO_URI = 'mongodb+srv://yanguon8_db_user:Qbw4dpdKPr3kUkOg@cluster0.sn0aoyp.mongodb.net/cng-13-0813?retryWrites=true&w=majority';
+const MONGO_URI = 'mongodb+srv://yanguon8_db_user:yC2bpsV4436Zibub@cluster0.sn0aoyp.mongodb.net/cng-13-0813?retryWrites=true&w=majority';
 const DB_NAME = 'cng-13-0813';
 const COLLECTION = 'business_data';
 
