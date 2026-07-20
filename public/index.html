@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CNG 13-0813</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #000; color: #e0e0e0; line-height: 1.6; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        header { background: linear-gradient(135deg, #0a0a0a 0%, #111 100%); border-bottom: 1px solid #1a1a1a; padding: 1rem 2rem; position: sticky; top: 0; z-index: 100; }
+        .header-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon { font-size: 2rem; }
+        .logo h1 { font-size: 1.3rem; font-weight: 700; color: #fff; letter-spacing: 1px; }
+        .logo .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; background: #1a1a1a; color: #888; margin-left: 8px; }
+        .live-info { font-size: 0.75rem; color: #555; display: flex; gap: 8px; align-items: center; }
+
+        .admin-toggle { padding: 8px 18px; border: 1px solid #333; border-radius: 8px; background: #0d0d0d; cursor: pointer; font-size: 0.85rem; color: #aaa; transition: all 0.3s; }
+        .admin-toggle:hover { background: #1a1a1a; color: #fff; border-color: #555; }
+        .admin-toggle.active { background: #0d2818; border-color: #2e7d32; color: #4caf50; }
+
+        nav { background: #050505; border-bottom: 1px solid #111; }
+        .nav-inner { max-width: 1200px; margin: 0 auto; display: flex; overflow-x: auto; }
+        .nav-btn { padding: 14px 24px; border: none; background: transparent; cursor: pointer; font-size: 0.9rem; color: #555; border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.3s; position: relative; }
+        .nav-btn::after { content: ''; position: absolute; bottom: -2px; left: 50%; width: 0; height: 2px; background: linear-gradient(90deg, #42a5f5, #7c4dff); transition: all 0.3s; transform: translateX(-50%); }
+        .nav-btn:hover { color: #ccc; background: #0a0a0a; }
+        .nav-btn.active { color: #fff; font-weight: 600; }
+        .nav-btn.active::after { width: 60%; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        .section { display: none; }
+        .section.active { display: block; animation: fadeSlide 0.35s ease; }
+        @keyframes fadeSlide { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { background: linear-gradient(145deg, #0d0d0d 0%, #0a0a0a 100%); border: 1px solid #1a1a1a; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; transition: all 0.3s; }
+        .card:hover { border-color: #222; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; padding-bottom: 0.8rem; border-bottom: 1px solid #141414; }
+        .card-title { font-size: 1rem; font-weight: 600; color: #ccc; display: flex; align-items: center; gap: 8px; }
+
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat { background: linear-gradient(145deg, #0d0d0d, #080808); border: 1px solid #1a1a1a; border-radius: 12px; padding: 1.5rem; text-align: center; transition: all 0.3s; position: relative; overflow: hidden; }
+        .stat::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; opacity: 0.6; }
+        .stat:hover { transform: translateY(-3px); border-color: #2a2a2a; }
+        .stat.income::before { background: linear-gradient(90deg, #4caf50, #2e7d32); }
+        .stat.expense::before { background: linear-gradient(90deg, #ef5350, #c62828); }
+        .stat.profit::before { background: linear-gradient(90deg, #42a5f5, #1565c0); }
+        .stat.misc::before { background: linear-gradient(90deg, #ffc107, #f57f17); }
+        .stat-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .stat-label { font-size: 0.75rem; color: #666; margin-bottom: 0.4rem; letter-spacing: 0.5px; text-transform: uppercase; }
+        .stat-value { font-size: 1.8rem; font-weight: 700; color: #fff; }
+        .stat-value.green { color: #4caf50; }
+        .stat-value.red { color: #ef5350; }
+        .stat-value.blue { color: #42a5f5; }
+        .stat-value.gold { color: #ffc107; }
+        .stat-sub { font-size: 0.75rem; color: #555; margin-top: 0.3rem; }
+
+        .btn { padding: 10px 22px; border: none; border-radius: 8px; font-size: 0.9rem; cursor: pointer; transition: all 0.3s; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+        .btn-primary { background: linear-gradient(135deg, #1565c0, #1976d2); color: #fff; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(21,101,192,0.3); }
+        .btn-secondary { background: #1a1a1a; color: #aaa; border: 1px solid #2a2a2a; }
+        .btn-secondary:hover { background: #222; color: #fff; border-color: #444; }
+        .btn-danger { background: #2a0a0a; color: #ef5350; border: 1px solid #3a1a1a; }
+        .btn-danger:hover { background: #3a0a0a; border-color: #5a1a1a; }
+        .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 0.8rem; }
+        .form-group { margin-bottom: 0.8rem; }
+        .form-group label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 0.4rem; font-weight: 500; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 11px 14px; border: 1px solid #2a2a2a; border-radius: 8px; font-size: 0.95rem; background: #0d0d0d; color: #e0e0e0; transition: all 0.3s; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #42a5f5; background: #111; box-shadow: 0 0 0 3px rgba(66,165,245,0.1); }
+
+        .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid #141414; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; font-size: 0.75rem; color: #666; font-weight: 600; padding: 12px 14px; border-bottom: 1px solid #1a1a1a; background: #080808; letter-spacing: 0.5px; text-transform: uppercase; }
+        td { padding: 12px 14px; border-bottom: 1px solid #0d0d0d; font-size: 0.9rem; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #0a0a0a; }
+        .table-empty { text-align: center; padding: 3rem; color: #444; }
+        .table-empty .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+        .badge-green { background: #0d2818; color: #4caf50; }
+        .badge-red { background: #2a0a0a; color: #ef5350; }
+        .badge-yellow { background: #1a1400; color: #ffc107; }
+        .badge-blue { background: #0a1a2a; color: #42a5f5; }
+        .badge-purple { background: #1a0a2a; color: #bb86fc; }
+
+        .amount { font-weight: 600; }
+        .amount.green { color: #4caf50; }
+        .amount.red { color: #ef5350; }
+        .amount.blue { color: #42a5f5; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.active { display: flex; animation: fadeIn 0.2s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal-box { background: #0d0d0d; border: 1px solid #1a1a1a; border-radius: 16px; width: 90%; max-width: 480px; max-height: 90vh; overflow-y: auto; animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid #1a1a1a; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { font-size: 1.1rem; color: #fff; }
+        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #555; transition: all 0.2s; }
+        .modal-close:hover { color: #fff; transform: rotate(90deg); }
+        .modal-body { padding: 1.5rem; }
+        .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid #1a1a1a; display: flex; gap: 10px; justify-content: flex-end; }
+
+        .quick-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .quick-btn { background: linear-gradient(145deg, #0d0d0d, #080808); border: 1px solid #1a1a1a; border-radius: 12px; padding: 1.25rem 1rem; cursor: pointer; text-align: center; transition: all 0.3s; }
+        .quick-btn:hover { border-color: #42a5f5; transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
+        .quick-btn .icon { font-size: 1.8rem; margin-bottom: 0.5rem; }
+        .quick-btn .text { font-size: 0.8rem; color: #888; font-weight: 500; }
+        .quick-btn.hidden, .add-btn.hidden { display: none; }
+
+        .chart-bar { background: #1a1a1a; height: 10px; border-radius: 5px; overflow: hidden; }
+        .chart-fill { height: 100%; border-radius: 5px; transition: width 1s ease; }
+
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap; }
+        .filter-bar select, .filter-bar input { padding: 8px 14px; border: 1px solid #2a2a2a; border-radius: 8px; font-size: 0.85rem; background: #0d0d0d; color: #e0e0e0; }
+
+        .toast { position: fixed; bottom: 24px; right: 24px; background: #1a1a1a; color: #e0e0e0; padding: 14px 24px; border-radius: 12px; border: 1px solid #2a2a2a; font-size: 0.9rem; display: none; z-index: 1100; backdrop-filter: blur(10px); }
+        .toast.show { display: block; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* AI Chat Styles */
+        .chat-container { height: 450px; overflow-y: auto; padding: 1rem; background: #080808; border: 1px solid #1a1a1a; border-radius: 8px; margin-bottom: 1rem; }
+        .chat-msg { margin-bottom: 12px; display: flex; gap: 8px; }
+        .chat-msg.user { flex-direction: row-reverse; }
+        .chat-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+        .chat-msg.user .chat-avatar { background: #1565c0; }
+        .chat-msg.bot .chat-avatar { background: #1a1a1a; }
+        .chat-bubble { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap; }
+        .chat-msg.user .chat-bubble { background: #0d2137; border: 1px solid #1a3a5c; color: #e0e0e0; }
+        .chat-msg.bot .chat-bubble { background: #0d0d0d; border: 1px solid #1a1a1a; color: #e0e0e0; }
+        .chat-action { text-align: center; font-size: 0.8rem; padding: 6px 12px; border-radius: 6px; margin-bottom: 8px; }
+        .chat-action.success { background: #0d2818; color: #4caf50; border: 1px solid #1a3a1a; }
+        .chat-action.error { background: #2a0a0a; color: #ef5350; border: 1px solid #3a1a1a; }
+
+        .ai-status { font-size: 0.75rem; padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; }
+        .ai-status.checking { background: #1a1400; color: #ffc107; border: 1px solid #332200; }
+        .ai-status.online { background: #0d2818; color: #4caf50; border: 1px solid #1a3a1a; }
+        .ai-status.offline { background: #2a0a0a; color: #ef5350; border: 1px solid #3a1a1a; }
+
+        .typing-dots::after { content: '...'; animation: dots 1.5s steps(3) infinite; }
+        @keyframes dots { 0% { content: '.'; } 33% { content: '..'; } 66% { content: '...'; } }
+
+        @media (max-width: 768px) {
+            .header-inner { flex-direction: column; gap: 10px; text-align: center; }
+            .stats { grid-template-columns: 1fr 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+            .quick-actions { grid-template-columns: 1fr 1fr; }
+            .nav-btn { padding: 12px 14px; font-size: 0.8rem; }
+            .stat-value { font-size: 1.4rem; }
+            .chat-bubble { max-width: 90%; }
+        }
+        @media (max-width: 480px) {
+            .stats { grid-template-columns: 1fr; }
+            .quick-actions { grid-template-columns: 1fr; }
+            .container { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-inner">
+        <div class="logo">
+            <span class="logo-icon">🛺</span>
+            <div>
+                <h1>CNG 13-0813 <span class="badge">v2.0</span></h1>
+                <div class="live-info">
+                    <span id="liveClock">--:--:--</span>
+                    <span>|</span>
+                    <span id="liveDate">-</span>
+                </div>
+            </div>
+        </div>
+        <button class="admin-toggle" id="adminBtn" onclick="toggleAdmin()">🔒 Viewer</button>
+    </div>
+</header>
+
+<nav>
+    <div class="nav-inner">
+        <button class="nav-btn active" onclick="showTab('home')">🏠 হোম</button>
+        <button class="nav-btn" onclick="showTab('income')">💰 আয়</button>
+        <button class="nav-btn" onclick="showTab('expense')">💸 খরচ</button>
+        <button class="nav-btn" onclick="showTab('report')">📊 রিপোর্ট</button>
+        <button class="nav-btn add-btn hidden" onclick="showTab('ai')" style="color:#bb86fc;">🤖 AI</button>
+    </div>
+</nav>
+
+<main class="container">
+
+    <!-- HOME -->
+    <div id="home" class="section active">
+        <div class="stats">
+            <div class="stat income">
+                <div class="stat-icon">📈</div>
+                <div class="stat-label">এই মাসের আয়</div>
+                <div class="stat-value green" id="homeIncome">৳ 0</div>
+                <div class="stat-sub">টার্গেটের <span id="homeTargetPct">0</span>%</div>
+            </div>
+            <div class="stat expense">
+                <div class="stat-icon">📉</div>
+                <div class="stat-label">এই মাসের খরচ</div>
+                <div class="stat-value red" id="homeExpense">৳ 0</div>
+                <div class="stat-sub">মোট আয়ের <span id="homeExpensePct">0</span>%</div>
+            </div>
+            <div class="stat profit">
+                <div class="stat-icon">💵</div>
+                <div class="stat-label">নিট লাভ</div>
+                <div class="stat-value blue" id="homeProfit">৳ 0</div>
+                <div class="stat-sub">লাভের হার <span id="homeMargin">0</span>%</div>
+            </div>
+        </div>
+
+        <div class="quick-actions">
+            <div class="quick-btn add-btn hidden" onclick="showTab('income'); openModal('incomeModal')">
+                <div class="icon">💰</div>
+                <div class="text">আয় যোগ করুন</div>
+            </div>
+            <div class="quick-btn add-btn hidden" onclick="showTab('expense'); openModal('expenseModal')">
+                <div class="icon">💸</div>
+                <div class="text">খরচ যোগ করুন</div>
+            </div>
+            <div class="quick-btn" onclick="showTab('report')">
+                <div class="icon">📊</div>
+                <div class="text">রিপোর্ট</div>
+            </div>
+            <div class="quick-btn add-btn hidden" onclick="showTab('ai')">
+                <div class="icon">🤖</div>
+                <div class="text">AI সহায়ক</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📋 আজকের সারসংক্ষেপ</div>
+                <span class="text-muted" id="todayDate" style="color:#555;font-size:0.85rem;">লোড হচ্ছে...</span>
+            </div>
+            <div class="stats" style="margin-bottom:0;">
+                <div class="stat income">
+                    <div class="stat-label">আজকের আয়</div>
+                    <div class="stat-value green" id="todayIncome">৳ 0</div>
+                </div>
+                <div class="stat expense">
+                    <div class="stat-label">আজকের খরচ</div>
+                    <div class="stat-value red" id="todayExpense">৳ 0</div>
+                </div>
+                <div class="stat profit">
+                    <div class="stat-label">আজকের লাভ</div>
+                    <div class="stat-value blue" id="todayProfit">৳ 0</div>
+                </div>
+                <div class="stat misc">
+                    <div class="stat-label">মোট কার্যদিবস</div>
+                    <div class="stat-value" id="totalDays">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📌 সাম্প্রতিক কার্যক্রম</div>
+            </div>
+            <div id="recentList" style="color:#555;text-align:center;padding:1rem;">লোড হচ্ছে...</div>
+        </div>
+    </div>
+
+    <!-- INCOME -->
+    <div id="income" class="section">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">💰 দৈনিক আয় রেকর্ড</div>
+                <button class="btn btn-primary btn-sm add-btn hidden" onclick="openModal('incomeModal')">➕ যোগ করুন</button>
+            </div>
+            <div class="stats" style="margin-bottom:1.5rem;">
+                <div class="stat income">
+                    <div class="stat-label">মাসিক মোট</div>
+                    <div class="stat-value green" id="incomeTotal">৳ 0</div>
+                </div>
+                <div class="stat profit">
+                    <div class="stat-label">গড় দৈনিক</div>
+                    <div class="stat-value" id="incomeAvg">৳ 0</div>
+                </div>
+                <div class="stat misc">
+                    <div class="stat-label">সর্বোচ্চ</div>
+                    <div class="stat-value green" id="incomeMax">৳ 0</div>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table><thead><tr><th>তারিখ</th><th>ড্রাইভার</th><th>আয়</th><th>অ্যাডজাস্ট</th><th>মোট</th><th>নোট</th><th></th></tr></thead><tbody id="incomeList"></tbody></table>
+                <div class="table-empty" id="incomeEmpty"><div class="icon">💰</div><div>কোনো এন্ট্রি নেই</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EXPENSE -->
+    <div id="expense" class="section">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">💸 খরচ রেকর্ড</div>
+                <button class="btn btn-primary btn-sm add-btn hidden" onclick="openModal('expenseModal')">➕ যোগ করুন</button>
+            </div>
+            <div class="stats" style="margin-bottom:1.5rem;">
+                <div class="stat expense">
+                    <div class="stat-label">মাসিক মোট</div>
+                    <div class="stat-value red" id="expenseTotal">৳ 0</div>
+                </div>
+                <div class="stat misc">
+                    <div class="stat-label">ফুয়েল</div>
+                    <div class="stat-value gold" id="fuelTotal">৳ 0</div>
+                </div>
+                <div class="stat misc">
+                    <div class="stat-label">সার্ভিসিং</div>
+                    <div class="stat-value" id="serviceTotal">৳ 0</div>
+                </div>
+            </div>
+            <div class="filter-bar">
+                <select id="expCatFilter" onchange="renderExpenseTable()">
+                    <option value="">সব ক্যাটাগরি</option>
+                    <option value="fuel">⛽ ফুয়েল</option>
+                    <option value="oil">🛢️ তেল</option>
+                    <option value="parts">🔧 পার্টস</option>
+                    <option value="tire">🛞 টায়ার</option>
+                    <option value="servicing">🛠️ সার্ভিসিং</option>
+                    <option value="document">📋 ডকুমেন্ট</option>
+                    <option value="insurance">🛡️ ইন্সুরেন্স</option>
+                    <option value="other">📌 অন্যান্য</option>
+                </select>
+            </div>
+            <div class="table-wrap">
+                <table><thead><tr><th>তারিখ</th><th>ক্যাটাগরি</th><th>বিবরণ</th><th>পরিমাণ</th><th></th></tr></thead><tbody id="expenseList"></tbody></table>
+                <div class="table-empty" id="expenseEmpty"><div class="icon">💸</div><div>কোনো খরচ নেই</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REPORT -->
+    <div id="report" class="section">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📊 মাসিক আর্থিক প্রতিবেদন</div>
+                <span style="color:#555;font-size:0.85rem;" id="reportMonth">-</span>
+            </div>
+            <div class="stats">
+                <div class="stat income">
+                    <div class="stat-label">মোট আয়</div>
+                    <div class="stat-value green" id="reportIncome">৳ 0</div>
+                </div>
+                <div class="stat expense">
+                    <div class="stat-label">মোট খরচ</div>
+                    <div class="stat-value red" id="reportExpense">৳ 0</div>
+                </div>
+                <div class="stat profit">
+                    <div class="stat-label">নিট লাভ</div>
+                    <div class="stat-value blue" id="reportProfit">৳ 0</div>
+                </div>
+                <div class="stat misc">
+                    <div class="stat-label">লাভের হার</div>
+                    <div class="stat-value" id="reportMargin">0%</div>
+                </div>
+            </div>
+            <div class="stats" style="grid-template-columns:repeat(3,1fr);">
+                <div class="stat profit">
+                    <div class="stat-label">গড় দৈনিক</div>
+                    <div class="stat-value blue" id="reportAvg">৳ 0</div>
+                </div>
+                <div class="stat misc">
+                    <div class="stat-label">সর্বোচ্চ দিন</div>
+                    <div class="stat-value green" id="reportMax">৳ 0</div>
+                </div>
+                <div class="stat misc">
+                    <div class="stat-label">সর্বনিম্ন দিন</div>
+                    <div class="stat-value red" id="reportMin">৳ 0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><div class="card-title">📊 খরচের বিভাগ</div></div>
+            <div id="expenseBreakdown">লোড হচ্ছে...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><div class="card-title">📅 মাসিক পারফরম্যান্স</div></div>
+            <div id="monthlyChart" style="padding:1rem 0;">লোড হচ্ছে...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><div class="card-title">📋 সমস্ত লেনদেন</div></div>
+            <div class="table-wrap">
+                <table><thead><tr><th>তারিখ</th><th>টাইপ</th><th>বিবরণ</th><th>পরিমাণ</th></tr></thead><tbody id="allTransactions"></tbody></table>
+                <div class="table-empty" id="txEmpty"><div class="icon">📋</div><div>কোনো লেনদেন নেই</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI CHAT -->
+    <div id="ai" class="section">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">🤖 AI Assistant - CNG 13-0813</div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <span class="ai-status offline" id="aiStatus">🔌 অফলাইন</span>
+                    <button class="btn btn-secondary btn-sm" onclick="checkAiStatus()">🔄 চেক</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom:1rem; padding:10px 14px; background:#1a1000; border:1px solid #332200; border-radius:8px; font-size:0.85rem; color:#ffc107;">
+                💡 AI কে প্রশ্ন করুন বা কাজ দিন। যেমন: <b>"আজকের আয় 900 যোগ করো"</b>, <b>"এই মাসের রিপোর্ট দাও"</b>, <b>"শেষ এন্ট্রি ডিলিট করো"</b>
+            </div>
+
+            <div class="chat-container" id="chatBox">
+                <div style="text-align:center; color:#666; padding:2rem;" id="chatWelcome">
+                    <div style="font-size:2.5rem; margin-bottom:0.5rem;">🤖</div>
+                    <div style="font-size:1.1rem; margin-bottom:0.3rem;">AI Assistant Ready!</div>
+                    <div style="font-size:0.85rem;">Admin Mode-এ AI কে কাজ দিন</div>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:8px;">
+                <input type="text" id="aiInput" placeholder="AI কে কিছু বলুন..." style="flex:1; padding:12px 16px; border:1px solid #2a2a2a; border-radius:8px; background:#0d0d0d; color:#e0e0e0; font-size:0.95rem;" onkeydown="if(event.key==='Enter') sendAiMsg()">
+                <button class="btn btn-primary" onclick="sendAiMsg()">➤ পাঠান</button>
+                <button class="btn btn-secondary" onclick="clearAiChat()">🗑️</button>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<!-- MODALS -->
+<div class="modal" id="incomeModal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>💰 আয় যোগ করুন</h3>
+            <button class="modal-close" onclick="closeModal('incomeModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group"><label>📅 তারিখ</label><input type="date" id="incDate"></div>
+            <div class="form-row">
+                <div class="form-group"><label>💵 আয় (টাকা)</label><input type="number" id="incAmount" placeholder="যেমন: 900"></div>
+                <div class="form-group"><label>🔄 বাকি/বেশি</label><input type="number" id="incBalance" placeholder="0" value="0"><div style="font-size:0.7rem;color:#555;margin-top:4px;">(-) বাকি, (+) বেশি</div></div>
+            </div>
+            <div class="form-group"><label>📝 নোট</label><input type="text" id="incNote" placeholder="যেমন: ভালো দিন, জ্যাম ইত্যাদি"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('incomeModal')">বাতিল</button>
+            <button class="btn btn-primary" onclick="saveIncome()">✅ সেভ</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="expenseModal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>💸 খরচ যোগ করুন</h3>
+            <button class="modal-close" onclick="closeModal('expenseModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group"><label>📅 তারিখ</label><input type="date" id="expDate"></div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>🏷️ ধরন</label>
+                    <select id="expCategory">
+                        <option value="fuel">⛽ ফুয়েল</option>
+                        <option value="oil">🛢️ তেল</option>
+                        <option value="parts">🔧 পার্টস</option>
+                        <option value="tire">🛞 টায়ার</option>
+                        <option value="servicing">🛠️ সার্ভিসিং</option>
+                        <option value="document">📋 ডকুমেন্ট</option>
+                        <option value="insurance">🛡️ ইন্সুরেন্স</option>
+                        <option value="other">📌 অন্যান্য</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>💵 পরিমাণ</label><input type="number" id="expAmount" placeholder="যেমন: 800"></div>
+            </div>
+            <div class="form-group"><label>📝 বিবরণ</label><input type="text" id="expDesc" placeholder="যেমন: দৈনিক ফুয়েল"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('expenseModal')">বাতিল</button>
+            <button class="btn btn-primary" onclick="saveExpense()">✅ সেভ</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== DATA ====================
+let isAdmin = false;
+const bnMonths = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+const bnMonthsShort = ['জানু','ফেব্রু','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টে','অক্টো','নভে','ডিসে'];
+const bnDays = ['রবি','সোম','মঙ্গল','বুধ','বৃহস্পতি','শুক্র','শনি'];
+const catNames = { fuel:'ফুয়েল', oil:'তেল', parts:'পার্টস', tire:'টায়ার', servicing:'সার্ভিসিং', document:'ডকুমেন্ট', insurance:'ইন্সুরেন্স', fine:'জরিমানা', other:'অন্যান্য' };
+const catIcons = { fuel:'⛽', oil:'🛢️', parts:'🔧', tire:'🛞', servicing:'🛠️', document:'📋', insurance:'🛡️', fine:'⚠️', other:'📌' };
+
+let data = { income: [], expenses: [] };
+
+function loadData() {
+    const saved = localStorage.getItem('cngDataV2');
+    if (saved) { data = JSON.parse(saved); }
+    else { createSampleData(); }
+}
+
+function createSampleData() {
+    const y = new Date().getFullYear(), m = new Date().getMonth();
+    data.income = [];
+    for (let i = 1; i <= 20; i++) {
+        data.income.push({ id: Date.now()+i, date: `${y}-${String(m+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`, amount: Math.random()>0.2 ? Math.floor(Math.random()*400)+500 : 0, balance: Math.random()>0.7 ? Math.floor(Math.random()*200) : 0, note: i%5===0?'গাড়ি বন্ধ':'' });
+    }
+    data.expenses = [
+        { id:1, date:`${y}-${String(m+1).padStart(2,'0')}-01`, category:'fuel', amount:800, desc:'ফুয়েল' },
+        { id:2, date:`${y}-${String(m+1).padStart(2,'0')}-03`, category:'fuel', amount:900, desc:'ফুয়েল' },
+        { id:3, date:`${y}-${String(m+1).padStart(2,'0')}-05`, category:'oil', amount:1500, desc:'তেল পরিবর্তন' },
+        { id:4, date:`${y}-${String(m+1).padStart(2,'0')}-07`, category:'fuel', amount:850, desc:'ফুয়েল' },
+        { id:5, date:`${y}-${String(m+1).padStart(2,'0')}-09`, category:'servicing', amount:2000, desc:'ইঞ্জিন সার্ভিসিং' },
+        { id:6, date:`${y}-${String(m+1).padStart(2,'0')}-10`, category:'fuel', amount:800, desc:'ফুয়েল' },
+        { id:7, date:`${y}-${String(m+1).padStart(2,'0')}-12`, category:'parts', amount:1200, desc:'বেল্ট' },
+        { id:8, date:`${y}-${String(m+1).padStart(2,'0')}-14`, category:'fuel', amount:850, desc:'ফুয়েল' },
+        { id:9, date:`${y}-${String(m+1).padStart(2,'0')}-16`, category:'tire', amount:3000, desc:'টায়ার' },
+        { id:10, date:`${y}-${String(m+1).padStart(2,'0')}-18`, category:'fuel', amount:750, desc:'ফুয়েল' },
+        { id:11, date:`${y}-${String(m+1).padStart(2,'0')}-19`, category:'servicing', amount:500, desc:'ফিল্টার' },
+        { id:12, date:`${y}-${String(m+1).padStart(2,'0')}-20`, category:'fuel', amount:800, desc:'ফুয়েল' },
+    ];
+    saveData();
+}
+
+function saveData() { localStorage.setItem('cngDataV2', JSON.stringify(data)); }
+
+// ==================== UI ====================
+function showTab(tab) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(tab).classList.add('active');
+    event.target.classList.add('active');
+    renderAll();
+}
+
+function toggleAdmin() {
+    if (!isAdmin) {
+        const pass = prompt('🔐 Admin Password:');
+        if (pass === '995211') {
+            isAdmin = true;
+            document.getElementById('adminBtn').textContent = '✅ Admin';
+            document.getElementById('adminBtn').classList.add('active');
+            document.querySelectorAll('.add-btn').forEach(b => b.classList.remove('hidden'));
+            toast('🔓 Admin Mode');
+        } else { toast('❌ ভুল পাসওয়ার্ড'); }
+    } else {
+        isAdmin = false;
+        document.getElementById('adminBtn').textContent = '🔒 Viewer';
+        document.getElementById('adminBtn').classList.remove('active');
+        document.querySelectorAll('.add-btn').forEach(b => b.classList.add('hidden'));
+        toast('🔒 Viewer Mode');
+    }
+    renderAll();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+// ==================== INCOME ====================
+function saveIncome() {
+    if (!isAdmin) { alert('Admin Mode দরকার'); return; }
+    const date = document.getElementById('incDate').value;
+    const amount = parseInt(document.getElementById('incAmount').value) || 0;
+    const balance = parseInt(document.getElementById('incBalance').value) || 0;
+    const note = document.getElementById('incNote').value;
+    if (!date) { alert('তারিখ দিন'); return; }
+    data.income.push({ id: Date.now(), date, amount, balance, note });
+    saveData(); closeModal('incomeModal');
+    document.getElementById('incAmount').value = ''; document.getElementById('incBalance').value = '0'; document.getElementById('incNote').value = '';
+    renderAll(); toast('✅ আয় যোগ হয়েছে');
+}
+
+function deleteIncome(id) {
+    if (!isAdmin || !confirm('ডিলিট করবেন?')) return;
+    data.income = data.income.filter(i => i.id !== id);
+    saveData(); renderAll(); toast('🗑️ ডিলিট হয়েছে');
+}
+
+function saveExpense() {
+    if (!isAdmin) { alert('Admin Mode দরকার'); return; }
+    const date = document.getElementById('expDate').value;
+    const category = document.getElementById('expCategory').value;
+    const amount = parseInt(document.getElementById('expAmount').value) || 0;
+    const desc = document.getElementById('expDesc').value;
+    if (!date || !amount) { alert('তারিখ এবং পরিমাণ দিন'); return; }
+    data.expenses.push({ id: Date.now(), date, category, amount, desc });
+    saveData(); closeModal('expenseModal');
+    document.getElementById('expAmount').value = ''; document.getElementById('expDesc').value = '';
+    renderAll(); toast('✅ খরচ যোগ হয়েছে');
+}
+
+function deleteExpense(id) {
+    if (!isAdmin || !confirm('ডিলিট করবেন?')) return;
+    data.expenses = data.expenses.filter(i => i.id !== id);
+    saveData(); renderAll(); toast('🗑️ ডিলিট হয়েছে');
+}
+
+// ==================== RENDER ====================
+function renderAll() {
+    const now = new Date();
+    const cm = now.getMonth(), cy = now.getFullYear();
+    const today = now.toISOString().split('T')[0];
+
+    const mIncome = data.income.filter(i => { const d = new Date(i.date); return d.getMonth()===cm && d.getFullYear()===cy; });
+    const mExpense = data.expenses.filter(i => { const d = new Date(i.date); return d.getMonth()===cm && d.getFullYear()===cy; });
+
+    const totalIncome = mIncome.reduce((s,i) => s + i.amount + (i.balance||0), 0);
+    const totalExpense = mExpense.reduce((s,i) => s + i.amount, 0);
+    const profit = totalIncome - totalExpense;
+    const margin = totalIncome > 0 ? Math.round((profit/totalIncome)*100) : 0;
+
+    const todayInc = data.income.filter(i => i.date===today).reduce((s,i) => s + i.amount + (i.balance||0), 0);
+    const todayExp = data.expenses.filter(i => i.date===today).reduce((s,i) => s + i.amount, 0);
+
+    // Home
+    document.getElementById('homeIncome').textContent = `৳ ${totalIncome.toLocaleString()}`;
+    document.getElementById('homeExpense').textContent = `৳ ${totalExpense.toLocaleString()}`;
+    document.getElementById('homeProfit').textContent = `৳ ${profit.toLocaleString()}`;
+    document.getElementById('homeTargetPct').textContent = totalIncome > 0 ? Math.round((totalIncome/(mIncome.length*900))*100) : 0;
+    document.getElementById('homeExpensePct').textContent = totalIncome > 0 ? Math.round((totalExpense/totalIncome)*100) : 0;
+    document.getElementById('homeMargin').textContent = margin;
+    document.getElementById('todayIncome').textContent = `৳ ${todayInc}`;
+    document.getElementById('todayExpense').textContent = `৳ ${todayExp}`;
+    document.getElementById('todayProfit').textContent = `৳ ${todayInc - todayExp}`;
+    document.getElementById('totalDays').textContent = mIncome.length;
+    document.getElementById('todayDate').textContent = `${bnDays[now.getDay()]}, ${now.getDate()} ${bnMonths[cm]} ${cy}`;
+
+    // Recent
+    const recent = [...data.income.slice(-3).map(i=>({...i,_t:'inc'})), ...data.expenses.slice(-3).map(e=>({...e,_t:'exp'}))]
+        .sort((a,b) => new Date(b.date)-new Date(a.date)).slice(0,6);
+    document.getElementById('recentList').innerHTML = recent.length ? recent.map(i => {
+        if (i._t === 'inc') return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #0d0d0d;">
+            <div><span style="color:#888;">${fmtDate(i.date)}</span> <span style="color:#fff;">💰 আয়</span> ${i.note ? `<span style="color:#555;font-size:0.8rem;">- ${i.note}</span>`:''}</div>
+            <span class="amount green">+৳ ${(i.amount+(i.balance||0)).toLocaleString()}</span></div>`;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #0d0d0d;">
+            <div><span style="color:#888;">${fmtDate(i.date)}</span> <span>${catIcons[i.category]||''} ${catNames[i.category]||i.category}</span></div>
+            <span class="amount red">-৳ ${i.amount.toLocaleString()}</span></div>`;
+    }).join('') : '<div style="color:#444;text-align:center;">কোনো কার্যক্রম নেই</div>';
+
+    // Income Table
+    const incList = [...data.income].sort((a,b) => new Date(b.date)-new Date(a.date));
+    document.getElementById('incomeList').innerHTML = incList.length ? incList.map(i => {
+        const total = i.amount+(i.balance||0);
+        const bal = i.balance>0 ? `<span class="badge badge-green">+${i.balance}</span>` : i.balance<0 ? `<span class="badge badge-red">${i.balance}</span>` : `<span style="color:#444;">-</span>`;
+        return `<tr><td style="white-space:nowrap;">${fmtDate(i.date)}</td><td>👤 MD BABLU</td><td class="amount">৳ ${i.amount.toLocaleString()}</td><td>${bal}</td><td class="amount green">৳ ${total.toLocaleString()}</td><td style="color:#888;font-size:0.85rem;">${i.note||'-'}</td><td>${isAdmin?`<button class="btn btn-danger btn-sm" onclick="deleteIncome(${i.id})">✕</button>`:''}</td></tr>`;
+    }).join('') : '';
+    document.getElementById('incomeEmpty').style.display = incList.length ? 'none' : 'block';
+
+    const dv = mIncome.map(i => i.amount+(i.balance||0)).filter(v => v>0);
+    document.getElementById('incomeTotal').textContent = `৳ ${totalIncome.toLocaleString()}`;
+    document.getElementById('incomeAvg').textContent = `৳ ${dv.length ? Math.round(dv.reduce((a,b)=>a+b,0)/dv.length) : 0}`;
+    document.getElementById('incomeMax').textContent = `৳ ${dv.length ? Math.max(...dv) : 0}`;
+
+    // Expense
+    renderExpenseTable();
+
+    // Report
+    document.getElementById('reportIncome').textContent = `৳ ${totalIncome.toLocaleString()}`;
+    document.getElementById('reportExpense').textContent = `৳ ${totalExpense.toLocaleString()}`;
+    document.getElementById('reportProfit').textContent = `৳ ${profit.toLocaleString()}`;
+    document.getElementById('reportMargin').textContent = `${margin}%`;
+    document.getElementById('reportMonth').textContent = `${bnMonths[cm]} ${cy}`;
+    document.getElementById('reportAvg').textContent = `৳ ${dv.length ? Math.round(dv.reduce((a,b)=>a+b,0)/dv.length) : 0}`;
+    document.getElementById('reportMax').textContent = `৳ ${dv.length ? Math.max(...dv) : 0}`;
+    document.getElementById('reportMin').textContent = `৳ ${dv.length ? Math.min(...dv) : 0}`;
+
+    // Expense Breakdown
+    const breakdown = {};
+    mExpense.forEach(e => { breakdown[e.category] = (breakdown[e.category]||0) + e.amount; });
+    const bKeys = Object.keys(breakdown);
+    const maxB = Math.max(...Object.values(breakdown), 1);
+    document.getElementById('expenseBreakdown').innerHTML = bKeys.length ? bKeys.sort((a,b)=>breakdown[b]-breakdown[a]).map(k => {
+        const pct = totalIncome > 0 ? Math.round((breakdown[k]/totalIncome)*100) : 0;
+        return `<div style="margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                <span style="font-size:0.9rem;">${catIcons[k]||'📌'} ${catNames[k]||k}</span>
+                <span style="font-size:0.9rem;font-weight:600;">৳ ${breakdown[k].toLocaleString()} <span style="color:#555;font-weight:400;">(${pct}%)</span></span>
+            </div>
+            <div class="chart-bar"><div class="chart-fill" style="width:${(breakdown[k]/maxB)*100}%;background:linear-gradient(90deg,#42a5f5,#7c4dff);"></div></div>
+        </div>`;
+    }).join('') : '<div style="color:#444;text-align:center;padding:1rem;">কোনো খরচ নেই</div>';
+
+    // Monthly Chart
+    const mData = bnMonthsShort.map((n, idx) => {
+        const inc = data.income.filter(i => { const d=new Date(i.date); return d.getMonth()===idx && d.getFullYear()===cy; }).reduce((s,i) => s+i.amount+(i.balance||0), 0);
+        const exp = data.expenses.filter(i => { const d=new Date(i.date); return d.getMonth()===idx && d.getFullYear()===cy; }).reduce((s,i) => s+i.amount, 0);
+        return { name: n, inc, exp, idx };
+    });
+    const maxM = Math.max(...mData.map(m => m.inc), 1);
+    document.getElementById('monthlyChart').innerHTML = `<div style="display:flex;gap:6px;align-items:flex-end;height:160px;">
+        ${mData.map(m => {
+            const h = Math.max((m.inc/maxM)*130, 2);
+            const isCur = m.idx === cm;
+            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+                <div style="font-size:0.6rem;color:#666;margin-bottom:4px;">${m.inc>0?'৳'+(m.inc/1000).toFixed(1)+'k':''}</div>
+                <div style="width:100%;height:${h}px;background:${isCur?'linear-gradient(180deg,#42a5f5,#1565c0)':'#1a1a1a'};border-radius:4px 4px 0 0;"></div>
+                <div style="width:40%;height:${Math.max(m.exp/maxM*130,1)}px;background:${isCur?'linear-gradient(180deg,#ef5350,#c62828)':'#2a0a0a'};border-radius:0 0 4px 4px;margin-top:2px;"></div>
+                <div style="font-size:0.65rem;color:${isCur?'#42a5f5':'#555'};margin-top:4px;font-weight:${isCur?'600':'400'};">${m.name}</div>
+            </div>`;
+        }).join('')}
+        <div style="font-size:0.65rem;color:#555;text-align:center;margin-left:8px;">
+            <div style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;background:#42a5f5;border-radius:2px;"></span> আয়</div>
+            <div style="display:flex;align-items:center;gap:4px;margin-top:2px;"><span style="display:inline-block;width:10px;height:10px;background:#ef5350;border-radius:2px;"></span> খরচ</div>
+        </div>
+    </div>`;
+
+    // All Transactions
+    const allTx = [
+        ...data.income.map(i => ({ date:i.date, type:'inc', desc:'আয় - MD BABLU'+(i.note?' ('+i.note+')':''), amount:i.amount+(i.balance||0) })),
+        ...data.expenses.map(e => ({ date:e.date, type:'exp', desc:(catIcons[e.category]||'')+' '+(catNames[e.category]||e.category)+' - '+e.desc, amount:-e.amount }))
+    ].sort((a,b) => new Date(b.date)-new Date(a.date));
+
+    document.getElementById('allTransactions').innerHTML = allTx.length ? allTx.slice(0,20).map(t => `
+        <tr><td style="white-space:nowrap;">${fmtDate(t.date)}</td>
+        <td>${t.type==='inc'?'<span class="badge badge-green">আয়</span>':'<span class="badge badge-red">খরচ</span>'}</td>
+        <td>${t.desc}</td><td class="amount ${t.type==='inc'?'green':'red'}">${t.type==='inc'?'+':'-'}৳ ${Math.abs(t.amount).toLocaleString()}</td></tr>
+    `).join('') : '';
+    document.getElementById('txEmpty').style.display = allTx.length ? 'none' : 'block';
+}
+
+function renderExpenseTable() {
+    const filter = document.getElementById('expCatFilter')?.value || '';
+    const f = filter ? data.expenses.filter(e => e.category===filter) : [...data.expenses];
+    const s = f.sort((a,b) => new Date(b.date)-new Date(a.date));
+    document.getElementById('expenseList').innerHTML = s.length ? s.map(i =>
+        `<tr><td style="white-space:nowrap;">${fmtDate(i.date)}</td><td>${catIcons[i.category]||'📌'} ${catNames[i.category]||i.category}</td><td style="color:#888;">${i.desc||'-'}</td><td class="amount red">৳ ${i.amount.toLocaleString()}</td><td>${isAdmin?`<button class="btn btn-danger btn-sm" onclick="deleteExpense(${i.id})">✕</button>`:''}</td></tr>`
+    ).join('') : '';
+    document.getElementById('expenseEmpty').style.display = s.length ? 'none' : 'block';
+
+    const m = new Date(), me = data.expenses.filter(i => { const d=new Date(i.date); return d.getMonth()===m.getMonth() && d.getFullYear()===m.getFullYear(); });
+    document.getElementById('expenseTotal').textContent = `৳ ${me.reduce((s,i)=>s+i.amount,0).toLocaleString()}`;
+    document.getElementById('fuelTotal').textContent = `৳ ${me.filter(e=>e.category==='fuel').reduce((s,i)=>s+i.amount,0).toLocaleString()}`;
+    document.getElementById('serviceTotal').textContent = `৳ ${me.filter(e=>e.category==='servicing').reduce((s,i)=>s+i.amount,0).toLocaleString()}`;
+}
+
+// ==================== AI CHAT ====================
+let aiMsgHistory = [];
+
+async function checkAiStatus() {
+    const el = document.getElementById('aiStatus');
+    el.className = 'ai-status checking'; el.innerHTML = '⏳ চেক করছি...';
+    try {
+        const res = await fetch('/api/ai-status');
+        const d = await res.json();
+        if (d.status === 'connected') {
+            el.className = 'ai-status online'; el.innerHTML = `✅ ${d.model||'সংযুক্ত'}`;
+        } else {
+            el.className = 'ai-status offline'; el.innerHTML = '❌ অফলাইন';
+        }
+    } catch(e) {
+        el.className = 'ai-status offline'; el.innerHTML = '❌ সার্ভার বন্ধ';
+    }
+}
+
+function addChatMsg(role, text) {
+    const box = document.getElementById('chatBox');
+    const w = document.getElementById('chatWelcome');
+    if (w) w.style.display = 'none';
+
+    const d = document.createElement('div');
+    d.className = `chat-msg ${role}`;
+    d.innerHTML = `<div class="chat-avatar">${role==='user'?'👤':'🤖'}</div><div class="chat-bubble">${text}</div>`;
+    box.appendChild(d);
+    box.scrollTop = box.scrollHeight;
+}
+
+function addChatAction(text, success) {
+    const box = document.getElementById('chatBox');
+    const d = document.createElement('div');
+    d.className = `chat-action ${success?'success':'error'}`;
+    d.textContent = `${success?'✅':'❌'} ${text}`;
+    box.appendChild(d);
+    box.scrollTop = box.scrollHeight;
+}
+
+function clearAiChat() {
+    document.getElementById('chatBox').innerHTML = `<div style="text-align:center;color:#666;padding:2rem;" id="chatWelcome"><div style="font-size:2.5rem;margin-bottom:0.5rem;">🤖</div><div style="font-size:1.1rem;margin-bottom:0.3rem;">AI Assistant Ready!</div><div style="font-size:0.85rem;">AI কে কিছু বলুন</div></div>`;
+    aiMsgHistory = [];
+}
+
+function getSysPrompt() {
+    const now = new Date();
+    const cm = now.getMonth(), cy = now.getFullYear();
+    const today = now.toISOString().split('T')[0];
+    const mInc = data.income.filter(i => { const d=new Date(i.date); return d.getMonth()===cm&&d.getFullYear()===cy; });
+    const mExp = data.expenses.filter(i => { const d=new Date(i.date); return d.getMonth()===cm&&d.getFullYear()===cy; });
+    const ti = mInc.reduce((s,i)=>s+i.amount+(i.balance||0),0);
+    const te = mExp.reduce((s,i)=>s+i.amount,0);
+    const tp = ti - te;
+
+    const allInc = data.income;
+    const allExp = data.expenses;
+    const totalIncAll = allInc.reduce((s,i)=>s+i.amount+(i.balance||0),0);
+    const totalExpAll = allExp.reduce((s,i)=>s+i.amount,0);
+
+    const breakdown = {};
+    mExp.forEach(e => { breakdown[e.category] = (breakdown[e.category]||0) + e.amount; });
+    const topCat = Object.entries(breakdown).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,v])=>`${catNames[k]||k}: ৳${v}`).join(', ');
+
+    const dailyVals = mInc.map(i => i.amount+(i.balance||0)).filter(v=>v>0);
+    const avgDaily = dailyVals.length ? Math.round(dailyVals.reduce((a,b)=>a+b,0)/dailyVals.length) : 0;
+    const maxDaily = dailyVals.length ? Math.max(...dailyVals) : 0;
+    const workDays = mInc.filter(i=>i.amount>0).length;
+    const offDays = mInc.filter(i=>i.amount===0).length;
+
+    return `তুমি "CNG 13-0813" - একটি CNG অটোরিকশা ব্যবসার ব্যবস্থাপনা সিস্টেমের AI Assistant। তুমি সম্পূর্ণ সিস্টেম নিয়ন্ত্রণ করতে পারো।
+
+═══════════════════════════════════
+📋 বর্তমান সিস্টেম তথ্য:
+═══════════════════════════════════
+📅 আজকের তারিখ: ${today}
+👤 ড্রাইভার: MD BABLU
+💵 টার্গেট দৈনিক আয়: ৳৯০০
+
+📊 বর্তমান মাসের সারসংক্ষেপ (${bnMonths[cm]} ${cy}):
+  ✅ মোট আয়: ৳${ti.toLocaleString()}
+  ❌ মোট খরচ: ৳${te.toLocaleString()}
+  💰 নিট লাভ: ৳${tp.toLocaleString()}
+  📈 লাভের হার: ${ti>0?Math.round((tp/ti)*100):0}%
+  📊 গড় দৈনিক আয়: ৳${avgDaily.toLocaleString()}
+  🏆 সর্বোচ্চ দৈনিক: ৳${maxDaily.toLocaleString()}
+  📅 কার্যদিবস: ${workDays} | ছুটি: ${offDays}
+  🔝 সেরা খরচের বিভাগ: ${topCat||'কোনো খরচ নেই'}
+
+📦 সর্বকালের পরিসংখ্যান:
+  💰 মোট আয়: ৳${totalIncAll.toLocaleString()} (${allInc.length}টি এন্ট্রি)
+  💸 মোট খরচ: ৳${totalExpAll.toLocaleString()} (${allExp.length}টি এন্ট্রি)
+
+═══════════════════════════════════
+⚡ তুমি নিচের কাজগুলো করতে পারো:
+═══════════════════════════════════
+
+📌 আয় সংক্রান্ত:
+  ACTION:addIncome|তারিখ|পরিমাণ|বাকি|নোট
+  ACTION:deleteIncome|id
+  ACTION:editIncome|id|newDate|newAmount|newBalance|newNote
+  ACTION:getAllIncome
+
+📌 খরচ সংক্রান্ত:
+  ACTION:addExpense|তারিখ|ক্যাটাগরি|পরিমাণ|বিবরণ
+  ACTION:deleteExpense|id
+  ACTION:editExpense|id|newDate|newCategory|newAmount|newDesc
+  ACTION:getAllExpense
+  ACTION:getExpenseByCategory|ক্যাটাগরি
+
+📌 রিপোর্ট ও তথ্য:
+  ACTION:getSummary
+  ACTION:getFullReport
+  ACTION:getMonthlyReport|মাস|বছর
+  ACTION:getYearlyReport|বছর
+  ACTION:getStats
+
+📌 অন্যান্য:
+  ACTION:clearAllData|পাসওয়ার্ড
+  ACTION:exportAllData
+
+═══════════════════════════════════
+📌 ক্যাটাগরি কোড:
+═══════════════════════════════════
+fuel=⛽ ফুয়েল | oil=🛢️ তেল | parts=🔧 পার্টস
+tire=🛞 টায়ার | servicing=🛠️ সার্ভিসিং | document=📋 ডকুমেন্ট
+insurance=🛡️ ইন্সুরেন্স | fine=⚠️ জরিমানা | other=📌 অন্যান্য
+
+═══════════════════════════════════
+📌 উদাহরণ:
+═══════════════════════════════════
+→ ACTION:addIncome|${today}|900|0|ভালো দিন
+→ ACTION:addExpense|${today}|fuel|800|সকালের ফুয়েল
+→ ACTION:getFullReport
+→ ACTION:getMonthlyReport|${cm+1}|${cy}
+→ ACTION:deleteIncome|123456
+
+═══════════════════════════════════
+⚡ নিয়ম:
+═══════════════════════════════════
+1. সবসময় বাংলায় উত্তর দাও
+2. কাজ করলে ACTION: দিয়ে বলো
+3. প্রতিটি ACTION আলাদা লাইনে হবে
+4. তথ্য জানতে চাইলে সরাসরি ACTION ব্যবহার করো
+5. ব্যবহারকারীকে সাহায্য করো এবং ডাটা বিশ্লেষণ করে দাও
+6. কোনো ভুল ACTION পেলে ব্যবহারকারীকে বুঝিয়ে বলো`;
+}
+
+async function sendAiMsg() {
+    const input = document.getElementById('aiInput');
+    const text = input.value.trim();
+    if (!text) return;
+    if (!isAdmin) { toast('Admin Mode দরকার'); return; }
+
+    input.value = '';
+    addChatMsg('user', text);
+
+    const sysPrompt = getSysPrompt();
+    const msgs = [
+        { role: 'system', content: sysPrompt },
+        ...aiMsgHistory.slice(-10),
+        { role: 'user', content: text }
+    ];
+
+    addChatMsg('bot', '⏳ চিন্তা করছি...');
+
+    try {
+        const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: msgs })
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const aiResult = await res.json();
+        const reply = aiResult.choices[0].message.content;
+
+        // Remove loading
+        const box = document.getElementById('chatBox');
+        const last = box.lastChild;
+        if (last && last.textContent.includes('⏳')) box.removeChild(last);
+
+        // Process actions
+        const actionRe = /ACTION:(\w+)\|([^|]+(?:\|[^|]+)*)/g;
+        let match, hasAct = false;
+        while ((match = actionRe.exec(reply)) !== null) {
+            hasAct = true;
+            const act = match[1], params = match[2].split('|');
+            try {
+                let actionMsg = '';
+                switch(act) {
+                    // ===== INCOME ACTIONS =====
+                    case 'addIncome': {
+                        const [d, amt, bal, ...nn] = params;
+                        data.income.push({ id:Date.now()+Math.random(), date:d.trim(), amount:parseInt(amt)||0, balance:parseInt(bal)||0, note:nn.join('|').trim() });
+                        saveData(); actionMsg = `✅ আয় যোগ হয়েছে: ৳${amt}`;
+                        break;
+                    }
+                    case 'deleteIncome': {
+                        const incId = parseFloat(params[0]);
+                        const found = data.income.find(i => i.id === incId);
+                        data.income = data.income.filter(i => i.id !== incId);
+                        saveData(); actionMsg = found ? `🗑️ আয় ডিলিট হয়েছে (${fmtDate(found.date)} - ৳${found.amount+(found.balance||0)})` : '❌ ID পাওয়া যায়নি';
+                        break;
+                    }
+                    case 'editIncome': {
+                        const [eid, ed, eAmt, eBal, ...eNn] = params;
+                        const idx = data.income.findIndex(i => i.id === parseFloat(eid));
+                        if (idx > -1) {
+                            data.income[idx] = { ...data.income[idx], date:ed.trim(), amount:parseInt(eAmt)||data.income[idx].amount, balance:parseInt(eBal)||0, note:eNn.join('|').trim() };
+                            saveData(); actionMsg = `✏️ আয় আপডেট হয়েছে`;
+                        } else { actionMsg = '❌ ID পাওয়া যায়নি'; }
+                        break;
+                    }
+                    case 'getAllIncome': {
+                        const all = [...data.income].sort((a,b)=>new Date(b.date)-new Date(a.date));
+                        actionMsg = `📋 সর্বমোট ${all.length}টি আয় এন্ট্রি:\n${all.slice(0,10).map(i=>`${fmtDate(i.date)}: ৳${i.amount+(i.balance||0)}${i.note?' ('+i.note+')':''}`).join('\n')}${all.length>10?'\n... আরো '+(all.length-10)+'টি':''}`;
+                        break;
+                    }
+
+                    // ===== EXPENSE ACTIONS =====
+                    case 'addExpense': {
+                        const [d2, cat, amt2, ...dd] = params;
+                        data.expenses.push({ id:Date.now()+Math.random(), date:d2.trim(), category:cat.trim(), amount:parseInt(amt2)||0, desc:dd.join('|').trim() });
+                        saveData(); actionMsg = `✅ খরচ যোগ হয়েছে: ৳${amt2} (${catNames[cat.trim()]||cat.trim()})`;
+                        break;
+                    }
+                    case 'deleteExpense': {
+                        const expId = parseFloat(params[0]);
+                        const foundExp = data.expenses.find(i => i.id === expId);
+                        data.expenses = data.expenses.filter(i => i.id !== expId);
+                        saveData(); actionMsg = foundExp ? `🗑️ খরচ ডিলিট হয়েছে (${fmtDate(foundExp.date)} - ৳${foundExp.amount})` : '❌ ID পাওয়া যায়নি';
+                        break;
+                    }
+                    case 'editExpense': {
+                        const [eid2, ed2, ecat, eAmt2, ...eDd] = params;
+                        const idx2 = data.expenses.findIndex(i => i.id === parseFloat(eid2));
+                        if (idx2 > -1) {
+                            data.expenses[idx2] = { ...data.expenses[idx2], date:ed2.trim(), category:ecat.trim(), amount:parseInt(eAmt2)||data.expenses[idx2].amount, desc:eDd.join('|').trim() };
+                            saveData(); actionMsg = `✏️ খরচ আপডেট হয়েছে`;
+                        } else { actionMsg = '❌ ID পাওয়া যায়নি'; }
+                        break;
+                    }
+                    case 'getAllExpense': {
+                        const allExp = [...data.expenses].sort((a,b)=>new Date(b.date)-new Date(a.date));
+                        actionMsg = `📋 সর্বমোট ${allExp.length}টি খরচ এন্ট্রি:\n${allExp.slice(0,10).map(i=>`${fmtDate(i.date)}: ৳${i.amount} (${catNames[i.category]||i.category})${i.desc?' - '+i.desc:''}`).join('\n')}${allExp.length>10?'\n... আরো '+(allExp.length-10)+'টি':''}`;
+                        break;
+                    }
+                    case 'getExpenseByCategory': {
+                        const cat = params[0].trim();
+                        const filtered = data.expenses.filter(e => e.category === cat);
+                        const total = filtered.reduce((s,i) => s + i.amount, 0);
+                        actionMsg = `📊 ${catIcons[cat]||''} ${catNames[cat]||cat}: ${filtered.length}টি এন্ট্রি, মোট ৳${total.toLocaleString()}`;
+                        break;
+                    }
+
+                    // ===== REPORT ACTIONS =====
+                    case 'getSummary': {
+                        const now2 = new Date();
+                        const cm2 = now2.getMonth(), cy2 = now2.getFullYear();
+                        const mi2 = data.income.filter(i => { const d=new Date(i.date); return d.getMonth()===cm2&&d.getFullYear()===cy2; });
+                        const me2 = data.expenses.filter(i => { const d=new Date(i.date); return d.getMonth()===cm2&&d.getFullYear()===cy2; });
+                        const ti2 = mi2.reduce((s,i)=>s+i.amount+(i.balance||0),0), te2 = me2.reduce((s,i)=>s+i.amount,0);
+                        const pct = ti2>0?Math.round(((ti2-te2)/ti2)*100):0;
+                        actionMsg = `📊 মাসিক সারসংক্ষেপ (${bnMonths[cm2]} ${cy2}):\n━━━━━━━━━━━━━━━━━━\n📈 আয়: ৳${ti2.toLocaleString()}\n📉 খরচ: ৳${te2.toLocaleString()}\n💵 লাভ: ৳${(ti2-te2).toLocaleString()} (${pct}%)\n📅 দিন: ${mi2.filter(i=>i.amount>0).length}\n🏆 গড়: ৳${mi2.filter(i=>i.amount>0).length?Math.round(ti2/mi2.filter(i=>i.amount>0).length):0}`;
+                        break;
+                    }
+                    case 'getFullReport': {
+                        const now3 = new Date();
+                        const cm3 = now3.getMonth(), cy3 = now3.getFullYear();
+                        const mi3 = data.income.filter(i => { const d=new Date(i.date); return d.getMonth()===cm3&&d.getFullYear()===cy3; });
+                        const me3 = data.expenses.filter(i => { const d=new Date(i.date); return d.getMonth()===cm3&&d.getFullYear()===cy3; });
+                        const ti3 = mi3.reduce((s,i)=>s+i.amount+(i.balance||0),0), te3 = me3.reduce((s,i)=>s+i.amount,0);
+                        const brk = {}, brkStr = [];
+                        me3.forEach(e => { brk[e.category] = (brk[e.category]||0) + e.amount; });
+                        Object.entries(brk).sort((a,b)=>b[1]-a[1]).forEach(([k,v]) => brkStr.push(`  ${catIcons[k]||'📌'} ${catNames[k]||k}: ৳${v.toLocaleString()}`));
+                        actionMsg = `📋 সম্পূর্ণ মাসিক রিপোর্ট (${bnMonths[cm3]} ${cy3}):\n━━━━━━━━━━━━━━━━━━\n💰 আয়: ৳${ti3.toLocaleString()}\n💸 খরচ: ৳${te3.toLocaleString()}\n💵 লাভ: ৳${(ti3-te3).toLocaleString()}\n📈 মার্জিন: ${ti3>0?Math.round(((ti3-te3)/ti3)*100):0}%\n━━━━━━━━━━━━━━━━━━\nখরচের বিভাগ:\n${brkStr.join('\n')||'  কোনো খরচ নেই'}\n━━━━━━━━━━━━━━━━━━\n📅 মোট কার্যদিবস: ${mi3.filter(i=>i.amount>0).length}\n🏆 গড় দৈনিক: ৳${mi3.filter(i=>i.amount>0).length?Math.round(ti3/mi3.filter(i=>i.amount>0).length):0}`;
+                        break;
+                    }
+                    case 'getMonthlyReport': {
+                        const mIdx = parseInt(params[0])-1, yr = parseInt(params[1])||cy;
+                        const mi4 = data.income.filter(i => { const d=new Date(i.date); return d.getMonth()===mIdx&&d.getFullYear()===yr; });
+                        const me4 = data.expenses.filter(i => { const d=new Date(i.date); return d.getMonth()===mIdx&&d.getFullYear()===yr; });
+                        const ti4 = mi4.reduce((s,i)=>s+i.amount+(i.balance||0),0), te4 = me4.reduce((s,i)=>s+i.amount,0);
+                        actionMsg = `📊 রিপোর্ট (${bnMonths[mIdx]} ${yr}):\n📈 আয়: ৳${ti4.toLocaleString()}\n📉 খরচ: ৳${te4.toLocaleString()}\n💵 লাভ: ৳${(ti4-te4).toLocaleString()}\n📅 দিন: ${mi4.filter(i=>i.amount>0).length}`;
+                        break;
+                    }
+                    case 'getYearlyReport': {
+                        const yr2 = parseInt(params[0])||cy;
+                        let yrInc = 0, yrExp = 0;
+                        data.income.filter(i => new Date(i.date).getFullYear()===yr2).forEach(i => yrInc += i.amount+(i.balance||0));
+                        data.expenses.filter(i => new Date(i.date).getFullYear()===yr2).forEach(i => yrExp += i.amount);
+                        actionMsg = `📊 বাৎসরিক রিপোর্ট ${yr2}:\n📈 আয়: ৳${yrInc.toLocaleString()}\n📉 খরচ: ৳${yrExp.toLocaleString()}\n💵 লাভ: ৳${(yrInc-yrExp).toLocaleString()}\n📦 মোট এন্ট্রি: ${data.income.length+data.expenses.length}টি`;
+                        break;
+                    }
+                    case 'getStats': {
+                        const dv = data.income.map(i=>i.amount+(i.balance||0)).filter(v=>v>0);
+                        let maxD = 0, minD = Infinity, totalD = 0;
+                        dv.forEach(v => { if(v>maxD) maxD=v; if(v<minD) minD=v; totalD+=v; });
+                        actionMsg = `📊 সার্বিক পরিসংখ্যান:\n━━━━━━━━━━━━━━━━━━\n📈 মোট আয় (সর্বকাল): ৳${data.income.reduce((s,i)=>s+i.amount+(i.balance||0),0).toLocaleString()}\n💸 মোট খরচ (সর্বকাল): ৳${data.expenses.reduce((s,i)=>s+i.amount,0).toLocaleString()}\n📦 মোট এন্ট্রি: ${data.income.length+data.expenses.length}টি\n🏆 সর্বোচ্চ দৈনিক আয়: ৳${maxD.toLocaleString()}\n📉 সর্বনিম্ন দৈনিক আয়: ৳${minD===Infinity?0:minD.toLocaleString()}\n📊 গড় দৈনিক আয়: ৳${dv.length?Math.round(totalD/dv.length):0}`;
+                        break;
+                    }
+                    case 'clearAllData': {
+                        if (params[0] === 'CONFIRM_RESET') {
+                            data = { income: [], expenses: [] };
+                            saveData(); actionMsg = '🔄 সব ডাটা রিসেট হয়েছে';
+                        } else { actionMsg = '⚠️ নিশ্চিত হতে "clearAllData|CONFIRM_RESET" ব্যবহার করুন'; }
+                        break;
+                    }
+                    case 'exportAllData': {
+                        actionMsg = '📥 ডাটা এক্সপোর্ট করতে পেজে গিয়ে 📥 বাটন ব্যবহার করুন';
+                        break;
+                    }
+                    default: addChatAction('⚠️ অজানা ACTION: '+act+'\nসঠিক ACTION ফরম্যাট ব্যবহার করুন', false);
+                }
+                if (actionMsg) addChatAction(actionMsg, true);
+            } catch(e) { addChatAction('❌ Failed: '+e.message, false); }
+        }
+
+        const clean = reply.replace(/ACTION:[^\n]*(\n|$)/g, '').trim();
+        if (clean) addChatMsg('bot', clean);
+
+        aiMsgHistory.push({ role: 'user', content: text });
+        aiMsgHistory.push({ role: 'assistant', content: reply });
+
+        if (hasAct) renderAll();
+
+    } catch(err) {
+        const box = document.getElementById('chatBox');
+        const last = box.lastChild;
+        if (last && last.textContent.includes('⏳')) box.removeChild(last);
+        addChatMsg('bot', '❌ Error: ' + err.message + '\n\nনিশ্চিত করুন:\n1. লোকাল AI সার্ভার চালু আছে (http://localhost:3001)\n2. সার্ভার রেস্টার্ট দিন');
+    }
+}
+
+// ==================== UTILS ====================
+function fmtDate(d) {
+    const date = new Date(d);
+    return `${date.getDate()} ${bnMonthsShort[date.getMonth()]}`;
+}
+
+function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ==================== LIVE CLOCK ====================
+function updateClock() {
+    const n = new Date();
+    document.getElementById('liveClock').textContent = `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
+    document.getElementById('liveDate').textContent = `${bnDays[n.getDay()]}, ${n.getDate()} ${bnMonths[n.getMonth()]} ${n.getFullYear()}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ==================== INIT ====================
+function setDates() {
+    const t = new Date().toISOString().split('T')[0];
+    document.getElementById('incDate').value = t;
+    document.getElementById('expDate').value = t;
+}
+
+window.onclick = e => { if (e.target.classList.contains('modal')) e.target.classList.remove('active'); };
+
+loadData();
+setDates();
+renderAll();
+setTimeout(checkAiStatus, 2000);
+</script>
+</body>
+</html>

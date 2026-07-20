@@ -1,0 +1,13 @@
+{
+  "name": "cng-13-0813",
+  "version": "2.0.0",
+  "description": "CNG Business Accounting & Management System with AI Assistant",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
