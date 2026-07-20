@@ -563,60 +563,45 @@ function saveData() {
 }
 
 async function loadData() {
-    // Step 1: Check localStorage first (fast)
-    let localData = null;
-    const mainStr = localStorage.getItem(DATA_KEYS.main);
-    if (mainStr) {
-        try { const p = JSON.parse(mainStr); if (isValidData(p)) localData = p; } catch(e) {}
-    }
-    if (!localData) {
-        const b1 = localStorage.getItem(DATA_KEYS.bak1);
-        if (b1) { try { const p = JSON.parse(b1); if (isValidData(p)) localData = p; } catch(e) {} }
-    }
-    if (!localData) {
-        const b2 = localStorage.getItem(DATA_KEYS.bak2);
-        if (b2) { try { const p = JSON.parse(b2); if (isValidData(p)) localData = p; } catch(e) {} }
-    }
+    let loaded = false;
 
-    // Step 2: Try cloud sync
-    let cloudData = null;
+    // 1. Try Cloud
     try {
         const res = await fetch('/api/data');
         const d = await res.json();
         if (d.success && d.data && Array.isArray(d.data.income)) {
-            cloudData = d.data;
+            data.income = d.data.income;
+            data.expenses = d.data.expenses || [];
+            loaded = true;
+            console.log('[DATA] Cloud:', data.income.length, 'incomes');
         }
-    } catch(e) {
-        console.warn('[DATA] Cloud unavailable:', e.message);
+    } catch(e) { console.warn('[DATA] Cloud error:', e.message); }
+
+    // 2. Cloud has 0 data AND local has data → use local (cloud sync failed earlier)
+    if ((!loaded || data.income.length === 0)) {
+        let local = null;
+        for (const k of [DATA_KEYS.main, DATA_KEYS.bak1, DATA_KEYS.bak2]) {
+            const str = localStorage.getItem(k);
+            if (str) { try { const p = JSON.parse(str); if (isValidData(p) && p.income && p.income.length > 0) { local = p; break; } } catch(e) {} }
+        }
+        if (local) {
+            data.income = local.income;
+            data.expenses = local.expenses || [];
+            loaded = true;
+            console.log('[DATA] Local fallback:', data.income.length, 'incomes');
+            // Re-sync to cloud
+            fetch('/api/data', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ income: data.income, expenses: data.expenses })
+            }).catch(e => {});
+        }
     }
 
-    if (cloudData && cloudData.income.length > 0) {
-        // Cloud has data - use it (source of truth)
-        data.income = cloudData.income;
-        data.expenses = cloudData.expenses || [];
-        // Update local backup
-        const so = { version: STORAGE_VERSION, income: data.income, expenses: data.expenses, checksum: calcChecksum({income:data.income,expenses:data.expenses}), savedAt: new Date().toISOString() };
-        localStorage.setItem(DATA_KEYS.main, JSON.stringify(so));
-        console.log('[DATA] Cloud loaded:', data.income.length, 'income');
-    } else if (localData && localData.income && localData.income.length > 0) {
-        // No cloud data but local has data - use local, sync to cloud
-        data.income = localData.income;
-        data.expenses = localData.expenses || [];
-        console.log('[DATA] Local loaded, syncing to cloud:', data.income.length, 'income');
-        fetch('/api/data', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ income: data.income, expenses: data.expenses })
-        }).catch(e => console.warn('[DATA] Initial cloud sync failed:', e.message));
-    } else if (cloudData && cloudData.income && cloudData.income.length === 0) {
-        // Both empty - start fresh
+    // 3. Absolutely nothing
+    if (!loaded || data.income.length === 0) {
+        console.log('[DATA] Fresh empty start');
         data.income = [];
         data.expenses = [];
-        console.log('[DATA] Fresh start (cloud+local empty)');
-    } else {
-        // Nothing anywhere
-        createSampleData();
-        console.log('[DATA] Sample data created');
     }
 }
 
