@@ -752,11 +752,13 @@ let aiBaseUrl = '/api/chat'; // Default: Render proxy (local AI only)
 // Set Tailscale IP for mobile access (changes AI to call directly)
 function setAiTailscale(ip) {
     if (ip) {
-        aiBaseUrl = `http://${ip}:3001/v1/chat/completions`;
+        aiBaseUrl = `http://${ip}:3006/v1/chat/completions`;
         toast(`🔗 Tailscale: ${ip}`);
+        checkAiStatus(); // Auto check
     } else {
         aiBaseUrl = '/api/chat';
         toast('🔗 Local mode');
+        checkAiStatus();
     }
 }
 
@@ -764,9 +766,18 @@ async function checkAiStatus() {
     const el = document.getElementById('aiStatus');
     el.className = 'ai-status checking'; el.innerHTML = '⏳ চেক করছি...';
     try {
-        const res = await fetch('/api/ai-status');
+        let res;
+        if (aiBaseUrl === '/api/chat') {
+            res = await fetch('/api/ai-status');
+        } else {
+            res = await fetch(aiBaseUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: 'auto', messages: [{ role: 'user', content: 'hi' }], max_tokens: 5 })
+            });
+        }
         const d = await res.json();
-        if (d.status === 'connected') {
+        if (d.status === 'connected' || d.choices) {
             el.className = 'ai-status online'; el.innerHTML = `✅ ${d.model||'সংযুক্ত'}`;
         } else {
             el.className = 'ai-status offline'; el.innerHTML = '❌ অফলাইন';
