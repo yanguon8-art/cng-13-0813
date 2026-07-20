@@ -58,6 +58,32 @@ async function setData(income, expenses) {
     }
 }
 
+// ==================== DIAGNOSTIC ====================
+app.get('/api/db-test', async (req, res) => {
+    const result = { status: 'checking', mongodb: false, message: '' };
+    try {
+        const testClient = new MongoClient(MONGO_URI, { serverSelectionTimeoutMS: 5000 });
+        await testClient.connect();
+        const db = testClient.db(DB_NAME);
+        await db.command({ ping: 1 });
+        result.mongodb = true;
+        result.status = 'connected';
+        result.message = 'MongoDB connection OK';
+        // Test read/write
+        const col = db.collection(COLLECTION);
+        await col.updateOne({ _id: 'test' }, { $set: { test: true, time: Date.now() } }, { upsert: true });
+        const doc = await col.findOne({ _id: 'test' });
+        result.readWrite = !!doc;
+        await testClient.close();
+    } catch (e) {
+        result.status = 'error';
+        result.message = e.message;
+        result.code = e.code || 'UNKNOWN';
+    }
+    console.log('[DIAG]', JSON.stringify(result));
+    res.json(result);
+});
+
 // ==================== DATA API ====================
 app.get('/api/data', async (req, res) => {
     const data = await getData();
