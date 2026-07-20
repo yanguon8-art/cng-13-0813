@@ -420,11 +420,8 @@
                 💡 AI কে প্রশ্ন করুন বা কাজ দিন। যেমন: <b>"আজকের আয় 900 যোগ করো"</b>, <b>"এই মাসের রিপোর্ট দাও"</b>
             </div>
 
-            <div style="margin-bottom:1rem; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                <span style="font-size:0.75rem; color:#555;">🔗 Tailscale IP (মোবাইলের জন্য):</span>
-                <input type="text" id="tailscaleIp" placeholder="যেমন: 100.100.100.1" style="width:140px; padding:6px 10px; border:1px solid #2a2a2a; border-radius:6px; background:#0d0d0d; color:#e0e0e0; font-size:0.8rem;">
-                <button class="btn btn-secondary btn-sm" onclick="setAiTailscale(document.getElementById('tailscaleIp').value.trim())" style="font-size:0.75rem; padding:6px 10px;">✅ কানেক্ট</button>
-                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('tailscaleIp').value=''; setAiTailscale('')" style="font-size:0.75rem; padding:6px 10px;">⬅ লোকাল</button>
+            <div style="margin-bottom:1rem; padding:8px 12px; background:#1a0a0a; border:1px solid #3a1a1a; border-radius:8px; font-size:0.8rem; color:#ef5350;">
+                ⚠️ AI Assistant শুধুমাত্র লোকাল নেটওয়ার্কে কাজ করে। Render.com-এ AI ফিচার ব্যবহার করতে Tailscale VPN প্রয়োজন।
             </div>
 
             <div class="chat-container" id="chatBox">
@@ -546,74 +543,38 @@ function saveData() {
         expenses: data.expenses,
         checksum: calcChecksum({ income: data.income, expenses: data.expenses }),
         savedAt: new Date().toISOString(),
-        locked: true // Permanent lock flag
+        locked: true
     };
     const str = JSON.stringify(saveObj);
-
-    // Main save
     localStorage.setItem(DATA_KEYS.main, str);
-
-    // Rotate backups: bak2 gets bak1, bak1 gets main
     const bak1Str = localStorage.getItem(DATA_KEYS.bak1);
     if (bak1Str) localStorage.setItem(DATA_KEYS.bak2, bak1Str);
     localStorage.setItem(DATA_KEYS.bak1, str);
 }
 
-// Load data with auto-recovery from backups
 function loadData() {
     let loaded = null;
-    let source = '';
-
-    // Try main
     const mainStr = localStorage.getItem(DATA_KEYS.main);
     if (mainStr) {
         try {
             const parsed = JSON.parse(mainStr);
             if (isValidData(parsed) && calcChecksum({ income: parsed.income, expenses: parsed.expenses }) === parsed.checksum) {
                 loaded = parsed;
-                source = 'main';
             }
         } catch(e) {}
     }
-
-    // If main fails, try bak1
     if (!loaded) {
         const bak1Str = localStorage.getItem(DATA_KEYS.bak1);
-        if (bak1Str) {
-            try {
-                const parsed = JSON.parse(bak1Str);
-                if (isValidData(parsed)) {
-                    loaded = parsed;
-                    source = 'bak1';
-                    console.warn('[DATA] Main corrupt, restored from backup-1');
-                }
-            } catch(e) {}
-        }
+        if (bak1Str) { try { const parsed = JSON.parse(bak1Str); if (isValidData(parsed)) loaded = parsed; } catch(e) {} }
     }
-
-    // If all fail, try bak2
     if (!loaded) {
         const bak2Str = localStorage.getItem(DATA_KEYS.bak2);
-        if (bak2Str) {
-            try {
-                const parsed = JSON.parse(bak2Str);
-                if (isValidData(parsed)) {
-                    loaded = parsed;
-                    source = 'bak2';
-                    console.warn('[DATA] All backups degraded, restored from backup-2');
-                }
-            } catch(e) {}
-        }
+        if (bak2Str) { try { const parsed = JSON.parse(bak2Str); if (isValidData(parsed)) loaded = parsed; } catch(e) {} }
     }
-
     if (loaded) {
-        data.income = loaded.income;
-        data.expenses = loaded.expenses;
-        console.log('[DATA] Loaded from ' + source + ' | Income: ' + loaded.income.length + ', Expenses: ' + loaded.expenses.length);
+        data.income = loaded.income; data.expenses = loaded.expenses;
     } else {
-        // First time or all data lost - create sample
         createSampleData();
-        console.log('[DATA] Fresh start with sample data');
     }
 }
 
@@ -897,28 +858,12 @@ function renderExpenseTable() {
 
 // ==================== AI CHAT ====================
 let aiMsgHistory = [];
-let aiBaseUrl = '/api/chat'; // Default: Render proxy (local AI only)
-
-// Set Tailscale IP for mobile access (changes AI to call directly)
-function setAiTailscale(ip) {
-    if (ip) {
-        aiBaseUrl = `http://${ip}:3010/api/chat`;
-        toast(`🔗 Tailscale: ${ip}:3005`);
-        checkAiStatus();
-    } else {
-        aiBaseUrl = '/api/chat';
-        toast('🔗 Local mode');
-        checkAiStatus();
-    }
-}
 
 async function checkAiStatus() {
     const el = document.getElementById('aiStatus');
     el.className = 'ai-status checking'; el.innerHTML = '⏳ চেক করছি...';
     try {
-        let res;
-        if (aiBaseUrl === '/api/chat') {
-            res = await fetch('/api/ai-status');
+        const res = await fetch('/api/ai-status');
         } else {
             res = await fetch(aiBaseUrl, {
                 method: 'POST',
