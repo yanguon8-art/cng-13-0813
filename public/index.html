@@ -1237,9 +1237,13 @@ function setDates() {
 
 window.onclick = e => { if (e.target.classList.contains('modal')) e.target.classList.remove('active'); };
 
-loadData();
-setDates();
-renderAll();
+loadData().then(() => {
+    setDates();
+    renderAll();
+}).catch(() => {
+    setDates();
+    renderAll();
+});
 setTimeout(checkAiStatus, 2000);
 </script>
 </body>
