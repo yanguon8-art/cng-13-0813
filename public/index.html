@@ -537,72 +537,45 @@ function isValidData(d) {
 
 // Save data with triple backup + checksum
 function saveData() {
-    // Save to localStorage first (instant, synchronous)
     const saveObj = {
         version: STORAGE_VERSION,
         income: data.income,
         expenses: data.expenses,
-        checksum: calcChecksum({ income: data.income, expenses: data.expenses }),
         savedAt: new Date().toISOString()
     };
+    // LocalStorage (always works)
     localStorage.setItem(DATA_KEYS.main, JSON.stringify(saveObj));
-    const bak1Str = localStorage.getItem(DATA_KEYS.bak1);
-    if (bak1Str) localStorage.setItem(DATA_KEYS.bak2, bak1Str);
-    localStorage.setItem(DATA_KEYS.bak1, JSON.stringify(saveObj));
-
-    // Then sync to MongoDB Cloud in background (async)
-    fetch('/api/data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ income: data.income, expenses: data.expenses }),
-        keepalive: true  // Ensures request completes even on page reload
-    }).then(r => {
-        if (r.ok) console.log('[DATA] Cloud synced');
-        else console.warn('[DATA] Cloud sync failed:', r.status);
-    }).catch(e => console.warn('[DATA] Cloud sync error:', e.message));
+    // Cloud (background, silent)
+    try { fetch('/api/data', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({income:data.income, expenses:data.expenses}), keepalive:true }).catch(()=>{}); } catch(e) {}
 }
 
-async function loadData() {
+function loadData() {
+    // 1. Load from localStorage IMMEDIATELY (fast)
     let loaded = false;
-
-    // 1. Try Cloud
-    try {
-        const res = await fetch('/api/data');
-        const d = await res.json();
-        if (d.success && d.data && Array.isArray(d.data.income)) {
-            data.income = d.data.income;
-            data.expenses = d.data.expenses || [];
-            loaded = true;
-            console.log('[DATA] Cloud:', data.income.length, 'incomes');
-        }
-    } catch(e) { console.warn('[DATA] Cloud error:', e.message); }
-
-    // 2. Cloud has 0 data AND local has data → use local (cloud sync failed earlier)
-    if ((!loaded || data.income.length === 0)) {
-        let local = null;
-        for (const k of [DATA_KEYS.main, DATA_KEYS.bak1, DATA_KEYS.bak2]) {
-            const str = localStorage.getItem(k);
-            if (str) { try { const p = JSON.parse(str); if (isValidData(p) && p.income && p.income.length > 0) { local = p; break; } } catch(e) {} }
-        }
-        if (local) {
-            data.income = local.income;
-            data.expenses = local.expenses || [];
-            loaded = true;
-            console.log('[DATA] Local fallback:', data.income.length, 'incomes');
-            // Re-sync to cloud
-            fetch('/api/data', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ income: data.income, expenses: data.expenses })
-            }).catch(e => {});
-        }
+    for (const k of [DATA_KEYS.main, DATA_KEYS.bak1, DATA_KEYS.bak2]) {
+        const str = localStorage.getItem(k);
+        if (str) { try { const p = JSON.parse(str); if (p && Array.isArray(p.income)) { data.income = p.income; data.expenses = p.expenses||[]; loaded = true; break; } } catch(e) {} }
     }
-
-    // 3. Absolutely nothing
     if (!loaded || data.income.length === 0) {
-        console.log('[DATA] Fresh empty start');
         data.income = [];
         data.expenses = [];
     }
+    // 2. Then try cloud in background (doesn't block UI)
+    fetch('/api/data').then(r=>r.json()).then(d => {
+        if (d.success && d.data && Array.isArray(d.data.income) && d.data.income.length > 0) {
+            if (d.data.income.length > data.income.length) {
+                data.income = d.data.income;
+                data.expenses = d.data.expenses||[];
+                localStorage.setItem(DATA_KEYS.main, JSON.stringify({ version:STORAGE_VERSION, income:data.income, expenses:data.expenses }));
+                renderAll();
+                console.log('[DATA] Cloud sync applied:', data.income.length);
+            }
+        }
+        // If cloud is empty but local has data, push local to cloud
+        else if (data.income.length > 0) {
+            fetch('/api/data', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({income:data.income, expenses:data.expenses}) }).catch(()=>{});
+        }
+    }).catch(()=>{});
 }
 
 function createSampleData() {
