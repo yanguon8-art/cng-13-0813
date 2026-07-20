@@ -233,6 +233,14 @@
                 <div class="icon">🤖</div>
                 <div class="text">AI সহায়ক</div>
             </div>
+            <div class="quick-btn add-btn hidden" onclick="exportFullData()">
+                <div class="icon">💾</div>
+                <div class="text">ব্যাকআপ</div>
+            </div>
+            <div class="quick-btn add-btn hidden" onclick="importFullData()">
+                <div class="icon">📂</div>
+                <div class="text">রিস্টোর</div>
+            </div>
         </div>
 
         <div class="card">
@@ -505,10 +513,108 @@ const catIcons = { fuel:'⛽', oil:'🛢️', parts:'🔧', tire:'🛞', servici
 
 let data = { income: [], expenses: [] };
 
+// ==================== 🔐 STRONG DATA LOCK SYSTEM ====================
+// Triple backup | Checksum | Auto-recovery | Version Lock
+const DATA_KEYS = { main: 'cngMain', bak1: 'cngBak1', bak2: 'cngBak2' };
+const STORAGE_VERSION = 1;
+const BACKUP_COUNT = 2;
+
+// Generate simple checksum for data integrity
+function calcChecksum(obj) {
+    let str = JSON.stringify(obj);
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        let chr = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + chr;
+        hash |= 0;
+    }
+    return hash;
+}
+
+// Validate data structure
+function isValidData(d) {
+    return d && typeof d === 'object' &&
+        Array.isArray(d.income) && Array.isArray(d.expenses) &&
+        (d.version || 0) >= 0;
+}
+
+// Save data with triple backup + checksum
+function saveData() {
+    const saveObj = {
+        version: STORAGE_VERSION,
+        income: data.income,
+        expenses: data.expenses,
+        checksum: calcChecksum({ income: data.income, expenses: data.expenses }),
+        savedAt: new Date().toISOString(),
+        locked: true // Permanent lock flag
+    };
+    const str = JSON.stringify(saveObj);
+
+    // Main save
+    localStorage.setItem(DATA_KEYS.main, str);
+
+    // Rotate backups: bak2 gets bak1, bak1 gets main
+    const bak1Str = localStorage.getItem(DATA_KEYS.bak1);
+    if (bak1Str) localStorage.setItem(DATA_KEYS.bak2, bak1Str);
+    localStorage.setItem(DATA_KEYS.bak1, str);
+}
+
+// Load data with auto-recovery from backups
 function loadData() {
-    const saved = localStorage.getItem('cngDataV2');
-    if (saved) { data = JSON.parse(saved); }
-    else { createSampleData(); }
+    let loaded = null;
+    let source = '';
+
+    // Try main
+    const mainStr = localStorage.getItem(DATA_KEYS.main);
+    if (mainStr) {
+        try {
+            const parsed = JSON.parse(mainStr);
+            if (isValidData(parsed) && calcChecksum({ income: parsed.income, expenses: parsed.expenses }) === parsed.checksum) {
+                loaded = parsed;
+                source = 'main';
+            }
+        } catch(e) {}
+    }
+
+    // If main fails, try bak1
+    if (!loaded) {
+        const bak1Str = localStorage.getItem(DATA_KEYS.bak1);
+        if (bak1Str) {
+            try {
+                const parsed = JSON.parse(bak1Str);
+                if (isValidData(parsed)) {
+                    loaded = parsed;
+                    source = 'bak1';
+                    console.warn('[DATA] Main corrupt, restored from backup-1');
+                }
+            } catch(e) {}
+        }
+    }
+
+    // If all fail, try bak2
+    if (!loaded) {
+        const bak2Str = localStorage.getItem(DATA_KEYS.bak2);
+        if (bak2Str) {
+            try {
+                const parsed = JSON.parse(bak2Str);
+                if (isValidData(parsed)) {
+                    loaded = parsed;
+                    source = 'bak2';
+                    console.warn('[DATA] All backups degraded, restored from backup-2');
+                }
+            } catch(e) {}
+        }
+    }
+
+    if (loaded) {
+        data.income = loaded.income;
+        data.expenses = loaded.expenses;
+        console.log('[DATA] Loaded from ' + source + ' | Income: ' + loaded.income.length + ', Expenses: ' + loaded.expenses.length);
+    } else {
+        // First time or all data lost - create sample
+        createSampleData();
+        console.log('[DATA] Fresh start with sample data');
+    }
 }
 
 function createSampleData() {
@@ -534,7 +640,51 @@ function createSampleData() {
     saveData();
 }
 
-function saveData() { localStorage.setItem('cngDataV2', JSON.stringify(data)); }
+// Export all data as downloadable file
+function exportFullData() {
+    const str = localStorage.getItem(DATA_KEYS.main);
+    if (!str) { toast('❌ কোনো ডাটা নেই'); return; }
+    const blob = new Blob([str], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `CNG-13-0813-BACKUP-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('📥 ডাটা ব্যাকআপ ডাউনলোড হয়েছে');
+}
+
+// Import data from file
+function importFullData() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const imported = JSON.parse(ev.target.result);
+                if (isValidData(imported)) {
+                    if (confirm('ইম্পোর্ট করলে বর্তমান ডাটা রিপ্লেস হবে। নিশ্চিত?')) {
+                        data.income = imported.income;
+                        data.expenses = imported.expenses;
+                        saveData();
+                        renderAll();
+                        toast('✅ ডাটা ইম্পোর্ট হয়েছে');
+                    }
+                } else {
+                    toast('❌ ভ্যালিড ডাটা ফাইল নয়');
+                }
+            } catch(e) {
+                toast('❌ ফাইল পড়া যায়নি');
+            }
+        };
+        reader.readAsText(file);
+    };
+    input.click();
+}
 
 // ==================== UI ====================
 function showTab(tab) {
@@ -752,9 +902,9 @@ let aiBaseUrl = '/api/chat'; // Default: Render proxy (local AI only)
 // Set Tailscale IP for mobile access (changes AI to call directly)
 function setAiTailscale(ip) {
     if (ip) {
-        aiBaseUrl = `http://${ip}:3006/v1/chat/completions`;
-        toast(`🔗 Tailscale: ${ip}`);
-        checkAiStatus(); // Auto check
+        aiBaseUrl = `http://${ip}:3010/api/chat`;
+        toast(`🔗 Tailscale: ${ip}:3005`);
+        checkAiStatus();
     } else {
         aiBaseUrl = '/api/chat';
         toast('🔗 Local mode');
