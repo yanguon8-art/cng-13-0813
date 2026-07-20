@@ -864,15 +864,8 @@ async function checkAiStatus() {
     el.className = 'ai-status checking'; el.innerHTML = '⏳ চেক করছি...';
     try {
         const res = await fetch('/api/ai-status');
-        } else {
-            res = await fetch(aiBaseUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ model: 'auto', messages: [{ role: 'user', content: 'hi' }], max_tokens: 5 })
-            });
-        }
         const d = await res.json();
-        if (d.status === 'connected' || d.choices) {
+        if (d.status === 'connected') {
             el.className = 'ai-status online'; el.innerHTML = `✅ ${d.model||'সংযুক্ত'}`;
         } else {
             el.className = 'ai-status offline'; el.innerHTML = '❌ অফলাইন';
@@ -1030,7 +1023,7 @@ async function sendAiMsg() {
     addChatMsg('bot', '⏳ চিন্তা করছি...');
 
     try {
-        const res = await fetch(aiBaseUrl, {
+        const res = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ messages: msgs })
