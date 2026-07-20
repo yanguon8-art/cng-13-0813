@@ -408,8 +408,15 @@
                 </div>
             </div>
 
-            <div style="margin-bottom:1rem; padding:10px 14px; background:#1a1000; border:1px solid #332200; border-radius:8px; font-size:0.85rem; color:#ffc107;">
-                💡 AI কে প্রশ্ন করুন বা কাজ দিন। যেমন: <b>"আজকের আয় 900 যোগ করো"</b>, <b>"এই মাসের রিপোর্ট দাও"</b>, <b>"শেষ এন্ট্রি ডিলিট করো"</b>
+            <div style="margin-bottom:0.8rem; padding:10px 14px; background:#1a1000; border:1px solid #332200; border-radius:8px; font-size:0.85rem; color:#ffc107;">
+                💡 AI কে প্রশ্ন করুন বা কাজ দিন। যেমন: <b>"আজকের আয় 900 যোগ করো"</b>, <b>"এই মাসের রিপোর্ট দাও"</b>
+            </div>
+
+            <div style="margin-bottom:1rem; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <span style="font-size:0.75rem; color:#555;">🔗 Tailscale IP (মোবাইলের জন্য):</span>
+                <input type="text" id="tailscaleIp" placeholder="যেমন: 100.100.100.1" style="width:140px; padding:6px 10px; border:1px solid #2a2a2a; border-radius:6px; background:#0d0d0d; color:#e0e0e0; font-size:0.8rem;">
+                <button class="btn btn-secondary btn-sm" onclick="setAiTailscale(document.getElementById('tailscaleIp').value.trim())" style="font-size:0.75rem; padding:6px 10px;">✅ কানেক্ট</button>
+                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('tailscaleIp').value=''; setAiTailscale('')" style="font-size:0.75rem; padding:6px 10px;">⬅ লোকাল</button>
             </div>
 
             <div class="chat-container" id="chatBox">
@@ -740,6 +747,18 @@ function renderExpenseTable() {
 
 // ==================== AI CHAT ====================
 let aiMsgHistory = [];
+let aiBaseUrl = '/api/chat'; // Default: Render proxy (local AI only)
+
+// Set Tailscale IP for mobile access (changes AI to call directly)
+function setAiTailscale(ip) {
+    if (ip) {
+        aiBaseUrl = `http://${ip}:3001/v1/chat/completions`;
+        toast(`🔗 Tailscale: ${ip}`);
+    } else {
+        aiBaseUrl = '/api/chat';
+        toast('🔗 Local mode');
+    }
+}
 
 async function checkAiStatus() {
     const el = document.getElementById('aiStatus');
@@ -905,7 +924,7 @@ async function sendAiMsg() {
     addChatMsg('bot', '⏳ চিন্তা করছি...');
 
     try {
-        const res = await fetch('/api/chat', {
+        const res = await fetch(aiBaseUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ messages: msgs })
