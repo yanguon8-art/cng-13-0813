@@ -178,8 +178,6 @@
             </div>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
-            <span id="syncStatus" style="font-size:0.75rem; color:#666;">☁️ -</span>
-            <button class="admin-toggle add-btn hidden" onclick="syncToServer(true)" style="font-size:0.75rem; padding:6px 12px;">☁️ Sync Now</button>
             <button class="admin-toggle" id="adminBtn" onclick="toggleAdmin()">🔒 Viewer</button>
         </div>
     </div>
@@ -236,6 +234,14 @@
             <div class="quick-btn add-btn hidden" onclick="showTab('ai')">
                 <div class="icon">🤖</div>
                 <div class="text">AI সহায়ক</div>
+            </div>
+            <div class="quick-btn" onclick="exportBackup()">
+                <div class="icon">💾</div>
+                <div class="text">ব্যাকআপ</div>
+            </div>
+            <div class="quick-btn" onclick="importBackup()">
+                <div class="icon">📂</div>
+                <div class="text">রিস্টোর</div>
             </div>
             <div class="quick-btn add-btn hidden" onclick="exportFullData()">
                 <div class="icon">💾</div>
@@ -513,72 +519,80 @@ const catNames = { fuel:'ফুয়েল', oil:'তেল', parts:'পার�
 const catIcons = { fuel:'⛽', oil:'🛢️', parts:'🔧', tire:'🛞', servicing:'🛠️', document:'📋', insurance:'🛡️', fine:'⚠️', other:'📌' };
 
 let data = { income: [], expenses: [] };
-let syncStatus = 'unknown';
+let synced = false;
 
-// ==================== 📦 SIMPLE DATA SYSTEM ====================
-function saveLocal() {
-    localStorage.setItem('cngData', JSON.stringify({ income: data.income, expenses: data.expenses }));
-}
-
-function loadLocal() {
-    const str = localStorage.getItem('cngData');
-    if (str) { try { const p = JSON.parse(str); if (p && Array.isArray(p.income)) { data.income = p.income; data.expenses = p.expenses||[]; return true; } } catch(e) {} }
-    return false;
-}
-
-async function syncToServer(showToast = true) {
-    syncStatus = 'saving'; updateSyncUI();
-    try {
-        const res = await fetch('/api/data', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ income: data.income, expenses: data.expenses })
-        });
-        const d = await res.json();
-        if (d.success) {
-            syncStatus = 'synced'; updateSyncUI();
-            if (showToast) toast('☁️ Cloud Sync: ' + data.income.length + ' incomes');
-        } else { syncStatus = 'error'; updateSyncUI(); if (showToast) toast('❌ Sync failed'); }
-    } catch(e) { syncStatus = 'error'; updateSyncUI(); if (showToast) toast('❌ Server offline'); }
-}
-
-function updateSyncUI() {
-    const el = document.getElementById('syncStatus');
-    if (!el) return;
-    if (syncStatus === 'synced') el.innerHTML = '☁️ Synced';
-    else if (syncStatus === 'saving') el.innerHTML = '⏳ Syncing...';
-    else if (syncStatus === 'error') el.innerHTML = '❌ Failed';
-    else el.innerHTML = '☁️ -';
-}
-
+// ==================== 📦 AUTO SYNC (Server JSON File) ====================
 function saveData() {
-    saveLocal();
-    syncToServer(false); // background sync
+    // Local first (instant)
+    localStorage.setItem('cngDb', JSON.stringify({ income: data.income, expenses: data.expenses }));
+    // Server sync (background)
+    fetch('/api/data', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({income:data.income, expenses:data.expenses}) })
+    .then(r => { if (r.ok) synced = true; })
+    .catch(() => {});
 }
 
-function loadData() {
-    let fromServer = false;
-    // 1. Try embedded server data
+async function loadData() {
+    // Try server first (for cross-device sync)
     try {
-        const sd = __SERVER_DATA__;
-        if (sd && Array.isArray(sd.income)) {
-            data.income = sd.income;
-            data.expenses = sd.expenses || [];
-            saveLocal();
-            syncStatus = 'synced';
-            fromServer = true;
-            console.log('[DATA] From server:', data.income.length, 'incomes');
+        const res = await fetch('/api/data');
+        const d = await res.json();
+        if (d.success && d.data && Array.isArray(d.data.income)) {
+            const serverData = d.data;
+            // If server has data → use it
+            if (serverData.income.length > 0) {
+                data.income = serverData.income;
+                data.expenses = serverData.expenses || [];
+                localStorage.setItem('cngDb', JSON.stringify({ income:data.income, expenses:data.expenses }));
+                synced = true;
+                console.log('[SYNC] Server loaded:', data.income.length);
+                return;
+            }
+            // If server empty but local has data → push local to server
+            const local = localStorage.getItem('cngDb');
+            if (local) { try { const p = JSON.parse(local); if (p.income && p.income.length > 0) {
+                data.income = p.income; data.expenses = p.expenses||[];
+                fetch('/api/data', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({income:data.income, expenses:data.expenses}) });
+                console.log('[SYNC] Local pushed to server:', data.income.length);
+                return;
+            }} catch(e) {} }
         }
-    } catch(e) {}
-    // 2. Fallback to localStorage
-    if (!fromServer && loadLocal()) {
-        console.log('[DATA] From local:', data.income.length);
-        syncToServer(false);
+    } catch(e) {
+        // Server offline → use local
+        const local = localStorage.getItem('cngDb');
+        if (local) { try { const p = JSON.parse(local); if (p.income) { data.income = p.income; data.expenses = p.expenses||[]; return; } } catch(e) {} }
     }
-    // 3. Fresh
-    if (!fromServer && data.income.length === 0 && !localStorage.getItem('cngData')) {
-        console.log('[DATA] Fresh');
-    }
-    updateSyncUI();
+    // Fresh start
+    data.income = [];
+    data.expenses = [];
+    console.log('[SYNC] Fresh start');
+}
+
+// Manual backup
+function exportBackup() {
+    const str = localStorage.getItem('cngDb');
+    if (!str) { toast('No data'); return; }
+    const a = document.createElement('a');
+    a.href = 'data:application/json,' + encodeURIComponent(str);
+    a.download = 'CNG-Backup-' + new Date().toISOString().split('T')[0] + '.json'; a.click();
+    toast('📥 Downloaded');
+}
+function importBackup() {
+    const input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
+    input.onchange = e => {
+        const file = e.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+            try {
+                const p = JSON.parse(ev.target.result);
+                if (p && Array.isArray(p.income) && confirm('Replace all data?')) {
+                    data.income = p.income; data.expenses = p.expenses||[];
+                    saveData(); renderAll(); toast('✅ Imported: ' + p.income.length + ' incomes');
+                }
+            } catch(e) { toast('Invalid file'); }
+        };
+        reader.readAsText(file);
+    };
+    input.click();
 }
 
 function createSampleData() {
@@ -1224,9 +1238,6 @@ function setDates() {
 }
 
 window.onclick = e => { if (e.target.classList.contains('modal')) e.target.classList.remove('active'); };
-
-// ⚡ Server injects real data here (replaces the string below)
-const __SERVER_DATA__ = "__SERVER_DATA__";
 
 loadData();
 setDates();
