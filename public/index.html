@@ -523,8 +523,11 @@ let data = { income: [], expenses: [] };
 let saveStatus = 'saved';
 let isSaving = false;
 let pendingSave = null;
+let retryCount = 0;
+let lastSavedTime = '';
+let autoSaveTimer = null;
 
-// ==================== 📦 RELIABLE SAVE SYSTEM ====================
+// ==================== 📦 ULTRA-RELIABLE SAVE SYSTEM ====================
 
 function checksum(obj) {
     let s = JSON.stringify(obj), h = 0;
@@ -539,7 +542,7 @@ function validateData(inc, exp) {
     return true;
 }
 
-// Save to localStorage (instant)
+// Save to localStorage (instant, always works)
 function saveLocal() {
     const obj = { v: 2, income: data.income, expenses: data.expenses, cs: checksum({income:data.income, expenses:data.expenses}), ts: Date.now() };
     const str = JSON.stringify(obj);
@@ -549,35 +552,76 @@ function saveLocal() {
     localStorage.setItem('cngBak1', str);
 }
 
-// Save to server (with queue + retry)
-function saveServer() {
-    if (isSaving) { pendingSave = true; return; } // Queue if busy
+// Save to server with retry (3 attempts)
+async function saveServer(attempt = 1) {
+    if (isSaving && attempt === 1) { pendingSave = true; return; }
     isSaving = true;
     saveStatus = 'saving'; updateSaveUI();
+    retryCount = attempt;
 
-    fetch('/api/data', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ income: data.income, expenses: data.expenses }),
-        keepalive: true // Ensures request completes even on page close
-    })
-    .then(r => {
-        if (r.ok) { saveStatus = 'saved'; updateSaveUI(); }
-        else { saveStatus = 'error'; updateSaveUI(); }
-        isSaving = false;
-        if (pendingSave) { pendingSave = false; saveServer(); } // Process queued save
-    })
-    .catch(() => {
-        saveStatus = 'error'; updateSaveUI();
-        isSaving = false;
-        if (pendingSave) { pendingSave = false; saveServer(); }
-    });
+    try {
+        const res = await fetch('/api/data', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ income: data.income, expenses: data.expenses }),
+            keepalive: true
+        });
+        if (res.ok) {
+            saveStatus = 'saved'; retryCount = 0;
+            lastSavedTime = new Date().toLocaleTimeString();
+            updateSaveUI();
+            isSaving = false;
+            if (pendingSave) { pendingSave = false; saveServer(); }
+        } else {
+            throw new Error('HTTP ' + res.status);
+        }
+    } catch(e) {
+        if (attempt < 3) {
+            // Retry with backoff: 1s, 2s, 4s
+            const delay = Math.pow(2, attempt - 1) * 1000;
+            setTimeout(() => saveServer(attempt + 1), delay);
+        } else {
+            saveStatus = 'error'; retryCount = attempt;
+            updateSaveUI();
+            isSaving = false;
+            if (pendingSave) { pendingSave = false; saveServer(); }
+        }
+    }
+}
+
+// Force save (manual button)
+function forceSave() {
+    saveLocal();
+    toast('💾 Local saved: ' + data.income.length + ' incomes');
+    saveServer(1);
 }
 
 // Main save function
 function saveData() {
     if (!validateData(data.income, data.expenses)) return;
-    saveLocal(); // Always save locally first (instant)
-    saveServer(); // Server save (with queue)
+    saveLocal();
+    saveServer(1);
+    updateSaveUI();
+}
+
+// Auto-save every 30 seconds (background)
+function startAutoSave() {
+    clearInterval(autoSaveTimer);
+    autoSaveTimer = setInterval(() => {
+        if (data.income.length > 0 && data.expenses.length >= 0) {
+            saveServer(1);
+        }
+    }, 30000);
+}
+
+// Update UI
+function updateSaveUI() {
+    const el = document.getElementById('saveIndicator');
+    if (!el) return;
+    let icon = '✅', text = 'Saved';
+    if (saveStatus === 'saving') { icon = '⏳'; text = 'Saving...'; }
+    else if (saveStatus === 'error') { icon = '❌'; text = 'Error'; }
+    const time = lastSavedTime ? ' at ' + lastSavedTime : '';
+    el.innerHTML = `${icon} ${text}${time}`;
 }
 
 // Load with auto-recovery from corruption
@@ -1307,6 +1351,7 @@ window.onclick = e => { if (e.target.classList.contains('modal')) e.target.class
 loadData();
 setDates();
 renderAll();
+startAutoSave(); // Auto-save every 30s
 setTimeout(checkAiStatus, 2000);
 </script>
 </body>
