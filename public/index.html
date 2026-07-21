@@ -556,23 +556,26 @@ function saveData() {
 }
 
 function loadData() {
+    let fromServer = false;
     // 1. Try embedded server data
-    if (typeof __SERVER_DATA__ !== 'undefined' && __SERVER_DATA__ && __SERVER_DATA__.income && __SERVER_DATA__.income.length > 0) {
-        data.income = __SERVER_DATA__.income;
-        data.expenses = __SERVER_DATA__.expenses || [];
-        saveLocal();
-        syncStatus = 'synced';
-        console.log('[DATA] From server:', data.income.length);
-    }
+    try {
+        const sd = __SERVER_DATA__;
+        if (sd && Array.isArray(sd.income)) {
+            data.income = sd.income;
+            data.expenses = sd.expenses || [];
+            saveLocal();
+            syncStatus = 'synced';
+            fromServer = true;
+            console.log('[DATA] From server:', data.income.length, 'incomes');
+        }
+    } catch(e) {}
     // 2. Fallback to localStorage
-    else if (loadLocal()) {
+    if (!fromServer && loadLocal()) {
         console.log('[DATA] From local:', data.income.length);
         syncToServer(false);
     }
-    // 3. Fresh start
-    else {
-        data.income = [];
-        data.expenses = [];
+    // 3. Fresh
+    if (!fromServer && data.income.length === 0 && !localStorage.getItem('cngData')) {
         console.log('[DATA] Fresh');
     }
     updateSyncUI();
