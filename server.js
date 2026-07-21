@@ -145,9 +145,23 @@ app.get('/api/ai-status', async (req, res) => {
     }
 });
 
-// Serve frontend
+// Serve frontend with embedded data from MongoDB
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    const htmlPath = path.join(__dirname, 'public', 'index.html');
+    fs.readFile(htmlPath, 'utf-8', async (err, html) => {
+        if (err) { return res.status(500).send('Error loading page'); }
+
+        // Inject MongoDB data directly into HTML
+        let dataJson = 'null';
+        try {
+            const dbData = await getData();
+            if (dbData) dataJson = JSON.stringify(dbData);
+        } catch(e) { /* use null */ }
+
+        // Replace placeholder with actual data
+        html = html.replace('"__MONGO_DATA__"', dataJson);
+        res.send(html);
+    });
 });
 
 // Start server
