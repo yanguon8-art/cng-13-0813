@@ -178,6 +178,7 @@
             </div>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
+            <span id="saveIndicator" style="font-size:0.75rem; color:#666; margin-right:8px;">✅ Saved</span>
             <button class="admin-toggle" id="adminBtn" onclick="toggleAdmin()">🔒 Viewer</button>
         </div>
     </div>
@@ -519,62 +520,123 @@ const catNames = { fuel:'ফুয়েল', oil:'তেল', parts:'পার�
 const catIcons = { fuel:'⛽', oil:'🛢️', parts:'🔧', tire:'🛞', servicing:'🛠️', document:'📋', insurance:'🛡️', fine:'⚠️', other:'📌' };
 
 let data = { income: [], expenses: [] };
-let synced = false;
+let saveStatus = 'saved'; // 'saved' | 'saving' | 'error'
+let saveTimer = null;
+let lastSaved = '';
 
-// ==================== 📦 AUTO SYNC (Server JSON File) ====================
-function saveData() {
-    // Local first (instant)
-    localStorage.setItem('cngDb', JSON.stringify({ income: data.income, expenses: data.expenses }));
-    // Server sync (background)
-    fetch('/api/data', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({income:data.income, expenses:data.expenses}) })
-    .then(r => { if (r.ok) synced = true; })
-    .catch(() => {});
+// ==================== 📦 FAST + SECURE + ACCURATE DATA SYSTEM ====================
+
+// Generate simple checksum for integrity
+function checksum(obj) {
+    let s = JSON.stringify(obj), h = 0;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i) | 0;
+    return h;
 }
 
+// Validate data before save
+function validateData(inc, exp) {
+    if (!Array.isArray(inc) || !Array.isArray(exp)) return false;
+    for (const i of inc) { if (!i.date || typeof i.amount !== 'number') return false; }
+    for (const e of exp) { if (!e.date || typeof e.amount !== 'number' || !e.category) return false; }
+    return true;
+}
+
+// Save with debounce (prevents rapid multiple saves)
+function saveData() {
+    if (!validateData(data.income, data.expenses)) { console.warn('[DATA] Invalid data, save blocked'); return; }
+
+    // LOCAL: Triple backup + checksum
+    const saveObj = {
+        v: 2, // version
+        income: data.income,
+        expenses: data.expenses,
+        cs: checksum({ income: data.income, expenses: data.expenses }),
+        ts: Date.now()
+    };
+    const str = JSON.stringify(saveObj);
+
+    // Main + 2 backups (rotating)
+    localStorage.setItem('cngMain', str);
+    const b1 = localStorage.getItem('cngBak1');
+    if (b1) localStorage.setItem('cngBak2', b1);
+    localStorage.setItem('cngBak1', str);
+
+    // Update status
+    saveStatus = 'saving'; updateSaveUI();
+    lastSaved = new Date().toLocaleTimeString();
+
+    // SERVER: Debounced (300ms) to avoid spam during rapid edits
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+        fetch('/api/data', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ income: data.income, expenses: data.expenses })
+        })
+        .then(r => { if (r.ok) { saveStatus = 'saved'; updateSaveUI(); } else { saveStatus = 'error'; updateSaveUI(); } })
+        .catch(() => { saveStatus = 'error'; updateSaveUI(); });
+    }, 300);
+}
+
+// Load with auto-recovery from corruption
 async function loadData() {
-    // Try server first (for cross-device sync)
+    // Try server first
     try {
         const res = await fetch('/api/data');
         const d = await res.json();
-        if (d.success && d.data && Array.isArray(d.data.income)) {
-            const serverData = d.data;
-            // If server has data → use it
-            if (serverData.income.length > 0) {
-                data.income = serverData.income;
-                data.expenses = serverData.expenses || [];
-                localStorage.setItem('cngDb', JSON.stringify({ income:data.income, expenses:data.expenses }));
-                synced = true;
-                console.log('[SYNC] Server loaded:', data.income.length);
-                return;
-            }
-            // If server empty but local has data → push local to server
-            const local = localStorage.getItem('cngDb');
-            if (local) { try { const p = JSON.parse(local); if (p.income && p.income.length > 0) {
-                data.income = p.income; data.expenses = p.expenses||[];
-                fetch('/api/data', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({income:data.income, expenses:data.expenses}) });
-                console.log('[SYNC] Local pushed to server:', data.income.length);
-                return;
-            }} catch(e) {} }
+        if (d.success && d.data && Array.isArray(d.data.income) && d.data.income.length > 0) {
+            data.income = d.data.income;
+            data.expenses = d.data.expenses || [];
+            saveStatus = 'saved';
+            console.log('[DATA] Server OK:', data.income.length);
+            updateSaveUI();
+            return;
         }
-    } catch(e) {
-        // Server offline → use local
-        const local = localStorage.getItem('cngDb');
-        if (local) { try { const p = JSON.parse(local); if (p.income) { data.income = p.income; data.expenses = p.expenses||[]; return; } } catch(e) {} }
+    } catch(e) { /* server offline */ }
+
+    // Fallback: localStorage with integrity check
+    for (const key of ['cngMain', 'cngBak1', 'cngBak2']) {
+        const str = localStorage.getItem(key);
+        if (!str) continue;
+        try {
+            const p = JSON.parse(str);
+            if (p && Array.isArray(p.income) && Array.isArray(p.expenses)) {
+                // Verify checksum
+                const expected = checksum({ income: p.income, expenses: p.expenses });
+                if (p.cs === expected || !p.cs) { // p.cs may be undefined in old data
+                    data.income = p.income;
+                    data.expenses = p.expenses;
+                    console.log('[DATA] Local OK (key=' + key + '):', data.income.length);
+                    updateSaveUI();
+                    return;
+                }
+            }
+        } catch(e) {}
     }
-    // Fresh start
+
+    // Nothing valid found
     data.income = [];
     data.expenses = [];
-    console.log('[SYNC] Fresh start');
+    console.log('[DATA] Fresh start');
+    updateSaveUI();
+}
+
+// UI: Save status indicator
+function updateSaveUI() {
+    const el = document.getElementById('saveIndicator');
+    if (!el) return;
+    if (saveStatus === 'saved') el.innerHTML = '✅ Saved';
+    else if (saveStatus === 'saving') el.innerHTML = '⏳ Saving...';
+    else if (saveStatus === 'error') el.innerHTML = '❌ Save Error';
 }
 
 // Manual backup
 function exportBackup() {
-    const str = localStorage.getItem('cngDb');
-    if (!str) { toast('No data'); return; }
+    const str = localStorage.getItem('cngMain') || localStorage.getItem('cngBak1');
+    if (!str) { toast('❌ No data'); return; }
     const a = document.createElement('a');
     a.href = 'data:application/json,' + encodeURIComponent(str);
-    a.download = 'CNG-Backup-' + new Date().toISOString().split('T')[0] + '.json'; a.click();
-    toast('📥 Downloaded');
+    a.download = 'CNG-SafeBackup-' + new Date().toISOString().split('T')[0] + '.json'; a.click();
+    toast('📥 Backup saved');
 }
 function importBackup() {
     const input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
@@ -584,11 +646,11 @@ function importBackup() {
         reader.onload = ev => {
             try {
                 const p = JSON.parse(ev.target.result);
-                if (p && Array.isArray(p.income) && confirm('Replace all data?')) {
+                if (p && Array.isArray(p.income) && confirm('Replace all data with backup?')) {
                     data.income = p.income; data.expenses = p.expenses||[];
-                    saveData(); renderAll(); toast('✅ Imported: ' + p.income.length + ' incomes');
+                    saveData(); renderAll(); toast('✅ Restored: ' + p.income.length + ' incomes');
                 }
-            } catch(e) { toast('Invalid file'); }
+            } catch(e) { toast('❌ Invalid file'); }
         };
         reader.readAsText(file);
     };
