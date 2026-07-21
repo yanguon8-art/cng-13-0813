@@ -1,114 +1,78 @@
 const express = require('express');
 const path = require('path');
-const { MongoClient } = require('mongodb');
+const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3010;
-
-const MONGO_URI = 'mongodb+srv://yanguon8_db_user:yC2bpsV4436Zibub@cluster0.sn0aoyp.mongodb.net/cng-13-0813?retryWrites=true&w=majority';
-const DB_NAME = 'cng-13-0813';
-const COLLECTION = 'business_data';
+const DATA_FILE = path.join(__dirname, 'data.json');
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json({ limit: '10mb' }));
 
-let dbClient = null;
-
-// Connect to MongoDB
-async function connectDB() {
+// Read data from JSON file
+function readData() {
     try {
-        dbClient = new MongoClient(MONGO_URI);
-        await dbClient.connect();
-        console.log('[MongoDB] ✅ Connected to cloud database');
+        if (fs.existsSync(DATA_FILE)) {
+            const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+            return JSON.parse(raw);
+        }
+    } catch(e) { console.error('[DATA] Read error:', e.message); }
+    return null;
+}
+
+// Write data to JSON file
+function writeData(income, expenses) {
+    try {
+        const obj = { income, expenses, updatedAt: new Date().toISOString() };
+        fs.writeFileSync(DATA_FILE, JSON.stringify(obj, null, 2), 'utf-8');
         return true;
-    } catch (e) {
-        console.error('[MongoDB] ❌ Connection failed:', e.message);
-        return false;
-    }
+    } catch(e) { console.error('[DATA] Write error:', e.message); return false; }
 }
 
-// Get data from MongoDB
-async function getData() {
-    try {
-        if (!dbClient) await connectDB();
-        const db = dbClient.db(DB_NAME);
-        const col = db.collection(COLLECTION);
-        const doc = await col.findOne({ _id: 'main_data' });
-        return doc ? { income: doc.income || [], expenses: doc.expenses || [] } : null;
-    } catch (e) {
-        console.error('[MongoDB] Read error:', e.message);
-        return null;
-    }
-}
-
-// Save data to MongoDB
-async function setData(income, expenses) {
-    try {
-        if (!dbClient) await connectDB();
-        const db = dbClient.db(DB_NAME);
-        const col = db.collection(COLLECTION);
-        await col.updateOne(
-            { _id: 'main_data' },
-            { $set: { income, expenses, updatedAt: new Date().toISOString() } },
-            { upsert: true }
-        );
-        return true;
-    } catch (e) {
-        console.error('[MongoDB] Write error:', e.message);
-        return false;
-    }
-}
-
-// ==================== DIAGNOSTIC ====================
-app.get('/api/db-test', async (req, res) => {
-    const result = { status: 'checking', mongodb: false, message: '' };
-    try {
-        const testClient = new MongoClient(MONGO_URI, { serverSelectionTimeoutMS: 5000 });
-        await testClient.connect();
-        const db = testClient.db(DB_NAME);
-        await db.command({ ping: 1 });
-        result.mongodb = true;
-        result.status = 'connected';
-        result.message = 'MongoDB connection OK';
-        // Test read/write
-        const col = db.collection(COLLECTION);
-        await col.updateOne({ _id: 'test' }, { $set: { test: true, time: Date.now() } }, { upsert: true });
-        const doc = await col.findOne({ _id: 'test' });
-        result.readWrite = !!doc;
-        await testClient.close();
-    } catch (e) {
-        result.status = 'error';
-        result.message = e.message;
-        result.code = e.code || 'UNKNOWN';
-    }
-    console.log('[DIAG]', JSON.stringify(result));
-    res.json(result);
+// GET /api/data - load data
+app.get('/api/data', (req, res) => {
+    const d = readData();
+    if (d) res.json({ success: true, data: { income: d.income||[], expenses: d.expenses||[] } });
+    else res.json({ success: true, data: { income: [], expenses: [] } });
 });
 
-// ==================== DATA API ====================
-app.get('/api/data', async (req, res) => {
-    const data = await getData();
-    if (data) {
-        res.json({ success: true, data });
-    } else {
-        res.json({ success: true, data: { income: [], expenses: [] } });
-    }
-});
-
-app.post('/api/data', async (req, res) => {
+// POST /api/data - save data
+app.post('/api/data', (req, res) => {
     const { income, expenses } = req.body;
     if (!Array.isArray(income) || !Array.isArray(expenses)) {
-        return res.status(400).json({ success: false, error: 'Invalid format' });
+        return res.status(400).json({ success: false, error: 'Invalid data' });
     }
-    const saved = await setData(income, expenses);
+    const saved = writeData(income, expenses);
     if (saved) {
-        console.log('[MongoDB] Saved:', income.length, 'income,', expenses.length, 'expenses');
-        res.json({ success: true });
+        console.log('[DATA] Saved:', income.length, 'income,', expenses.length, 'expenses');
+        res.json({ success: true, count: income.length });
     } else {
-        res.status(500).json({ success: false, error: 'DB write failed' });
+        res.status(500).json({ success: false, error: 'Write failed' });
     }
 });
 
-// ==================== AI PROXY ====================
+// GET /api/data/download - download backup
+app.get('/api/data/download', (req, res) => {
+    const d = readData();
+    if (d) {
+        res.setHeader('Content-Disposition', `attachment; filename="cng-backup-${new Date().toISOString().split('T')[0]}.json"`);
+        res.json(d);
+    } else {
+        res.status(404).json({ error: 'No data' });
+    }
+});
+
+// POST /api/data/upload - upload backup
+app.post('/api/data/upload', (req, res) => {
+    const { income, expenses } = req.body;
+    if (Array.isArray(income) && Array.isArray(expenses)) {
+        writeData(income, expenses);
+        res.json({ success: true, count: income.length });
+    } else {
+        res.status(400).json({ success: false, error: 'Invalid backup file' });
+    }
+});
+
+// AI Proxy
 app.post('/api/chat', async (req, res) => {
     try {
         const { messages } = req.body;
@@ -122,59 +86,43 @@ app.post('/api/chat', async (req, res) => {
         });
         if (!aiRes.ok) return res.status(aiRes.status).json({ error: (await aiRes.text()).slice(0,500) });
         res.json(await aiRes.json());
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/ai-status', async (req, res) => {
     try {
-        const testRes = await fetch('http://localhost:3001/v1/chat/completions', {
+        const t = await fetch('http://localhost:3001/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer freellmapi-452ca8bed210fe077adc380b22db64f8c3ee0e961bf8fb90'
             },
-            body: JSON.stringify({ model: 'auto', messages: [{ role: 'user', content: 'hi' }], max_tokens: 5 }),
+            body: JSON.stringify({ model: 'auto', messages:[{role:'user', content:'hi'}], max_tokens:5 }),
             signal: AbortSignal.timeout(5000)
         });
-        if (testRes.ok) res.json({ status: 'connected', model: (await testRes.json()).model || 'auto' });
-        else res.json({ status: 'error' });
-    } catch (err) {
-        res.json({ status: 'disconnected' });
-    }
+        if (t.ok) res.json({ status:'connected' });
+        else res.json({ status:'error' });
+    } catch(e) { res.json({ status:'disconnected' }); }
 });
 
-// Serve frontend with embedded data from MongoDB
+// Serve frontend with embedded data
 app.get('*', (req, res) => {
     const htmlPath = path.join(__dirname, 'public', 'index.html');
     fs.readFile(htmlPath, 'utf-8', async (err, html) => {
-        if (err) { return res.status(500).send('Error loading page'); }
-
-        // Inject MongoDB data directly into HTML
+        if (err) return res.status(500).send('Error');
         let dataJson = 'null';
         try {
-            const dbData = await getData();
-            if (dbData) dataJson = JSON.stringify(dbData);
-        } catch(e) { /* use null */ }
-
-        // Replace placeholder with actual data
-        html = html.replace('"__MONGO_DATA__"', dataJson);
+            const d = readData();
+            if (d) dataJson = JSON.stringify({ income: d.income||[], expenses: d.expenses||[] });
+        } catch(e) {}
+        html = html.replace('"__SERVER_DATA__"', dataJson);
         res.send(html);
     });
 });
 
-// Start server
-async function start() {
-    await connectDB();
-    app.listen(PORT, () => {
-        console.log(`\n  🛺  CNG 13-0813 Business System`);
-        console.log(`  ═══════════════════════════════`);
-        console.log(`  ➜  Public:  https://cng-13-0813.onrender.com`);
-        console.log(`  ➜  Local:   http://localhost:${PORT}`);
-        console.log(`  ➜  DB:      MongoDB Atlas (Cloud)`);
-        console.log(`  ➜  AI:      http://localhost:3001\n`);
-    });
-}
-
-start();
+app.listen(PORT, () => {
+    console.log(`\n  🛺  CNG 13-0813 Business System`);
+    console.log(`  ═══════════════════════════════`);
+    console.log(`  ➜  URL:   https://cng-13-0813.onrender.com`);
+    console.log(`  ➜  Data:  ${DATA_FILE}\n`);
+});

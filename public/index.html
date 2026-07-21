@@ -177,7 +177,11 @@
                 </div>
             </div>
         </div>
-        <button class="admin-toggle" id="adminBtn" onclick="toggleAdmin()">🔒 Viewer</button>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <span id="syncStatus" style="font-size:0.75rem; color:#666;">☁️ -</span>
+            <button class="admin-toggle add-btn hidden" onclick="syncToServer(true)" style="font-size:0.75rem; padding:6px 12px;">☁️ Sync Now</button>
+            <button class="admin-toggle" id="adminBtn" onclick="toggleAdmin()">🔒 Viewer</button>
+        </div>
     </div>
 </header>
 
@@ -509,73 +513,69 @@ const catNames = { fuel:'ফুয়েল', oil:'তেল', parts:'পার�
 const catIcons = { fuel:'⛽', oil:'🛢️', parts:'🔧', tire:'🛞', servicing:'🛠️', document:'📋', insurance:'🛡️', fine:'⚠️', other:'📌' };
 
 let data = { income: [], expenses: [] };
+let syncStatus = 'unknown';
 
-// ==================== 🔐 STRONG DATA LOCK SYSTEM ====================
-// Triple backup | Checksum | Auto-recovery | Version Lock
-const DATA_KEYS = { main: 'cngMain', bak1: 'cngBak1', bak2: 'cngBak2' };
-const STORAGE_VERSION = 1;
-const BACKUP_COUNT = 2;
-
-// Generate simple checksum for data integrity
-function calcChecksum(obj) {
-    let str = JSON.stringify(obj);
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        let chr = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + chr;
-        hash |= 0;
-    }
-    return hash;
+// ==================== 📦 SIMPLE DATA SYSTEM ====================
+function saveLocal() {
+    localStorage.setItem('cngData', JSON.stringify({ income: data.income, expenses: data.expenses }));
 }
 
-// Validate data structure
-function isValidData(d) {
-    return d && typeof d === 'object' &&
-        Array.isArray(d.income) && Array.isArray(d.expenses) &&
-        (d.version || 0) >= 0;
+function loadLocal() {
+    const str = localStorage.getItem('cngData');
+    if (str) { try { const p = JSON.parse(str); if (p && Array.isArray(p.income)) { data.income = p.income; data.expenses = p.expenses||[]; return true; } } catch(e) {} }
+    return false;
 }
 
-// Save data with triple backup + checksum
+async function syncToServer(showToast = true) {
+    syncStatus = 'saving'; updateSyncUI();
+    try {
+        const res = await fetch('/api/data', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ income: data.income, expenses: data.expenses })
+        });
+        const d = await res.json();
+        if (d.success) {
+            syncStatus = 'synced'; updateSyncUI();
+            if (showToast) toast('☁️ Cloud Sync: ' + data.income.length + ' incomes');
+        } else { syncStatus = 'error'; updateSyncUI(); if (showToast) toast('❌ Sync failed'); }
+    } catch(e) { syncStatus = 'error'; updateSyncUI(); if (showToast) toast('❌ Server offline'); }
+}
+
+function updateSyncUI() {
+    const el = document.getElementById('syncStatus');
+    if (!el) return;
+    if (syncStatus === 'synced') el.innerHTML = '☁️ Synced';
+    else if (syncStatus === 'saving') el.innerHTML = '⏳ Syncing...';
+    else if (syncStatus === 'error') el.innerHTML = '❌ Failed';
+    else el.innerHTML = '☁️ -';
+}
+
 function saveData() {
-    const saveObj = {
-        version: STORAGE_VERSION,
-        income: data.income,
-        expenses: data.expenses,
-        savedAt: new Date().toISOString()
-    };
-    // LocalStorage (always works)
-    localStorage.setItem(DATA_KEYS.main, JSON.stringify(saveObj));
-    // Cloud (background, silent)
-    try { fetch('/api/data', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({income:data.income, expenses:data.expenses}), keepalive:true }).catch(()=>{}); } catch(e) {}
+    saveLocal();
+    syncToServer(false); // background sync
 }
 
 function loadData() {
-    // 1. Load from localStorage IMMEDIATELY (fast)
-    let loaded = false;
-    for (const k of [DATA_KEYS.main, DATA_KEYS.bak1, DATA_KEYS.bak2]) {
-        const str = localStorage.getItem(k);
-        if (str) { try { const p = JSON.parse(str); if (p && Array.isArray(p.income)) { data.income = p.income; data.expenses = p.expenses||[]; loaded = true; break; } } catch(e) {} }
+    // 1. Try embedded server data
+    if (typeof __SERVER_DATA__ !== 'undefined' && __SERVER_DATA__ && __SERVER_DATA__.income && __SERVER_DATA__.income.length > 0) {
+        data.income = __SERVER_DATA__.income;
+        data.expenses = __SERVER_DATA__.expenses || [];
+        saveLocal();
+        syncStatus = 'synced';
+        console.log('[DATA] From server:', data.income.length);
     }
-    if (!loaded || data.income.length === 0) {
+    // 2. Fallback to localStorage
+    else if (loadLocal()) {
+        console.log('[DATA] From local:', data.income.length);
+        syncToServer(false);
+    }
+    // 3. Fresh start
+    else {
         data.income = [];
         data.expenses = [];
+        console.log('[DATA] Fresh');
     }
-    // 2. Then try cloud in background (doesn't block UI)
-    fetch('/api/data').then(r=>r.json()).then(d => {
-        if (d.success && d.data && Array.isArray(d.data.income) && d.data.income.length > 0) {
-            if (d.data.income.length > data.income.length) {
-                data.income = d.data.income;
-                data.expenses = d.data.expenses||[];
-                localStorage.setItem(DATA_KEYS.main, JSON.stringify({ version:STORAGE_VERSION, income:data.income, expenses:data.expenses }));
-                renderAll();
-                console.log('[DATA] Cloud sync applied:', data.income.length);
-            }
-        }
-        // If cloud is empty but local has data, push local to cloud
-        else if (data.income.length > 0) {
-            fetch('/api/data', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({income:data.income, expenses:data.expenses}) }).catch(()=>{});
-        }
-    }).catch(()=>{});
+    updateSyncUI();
 }
 
 function createSampleData() {
@@ -1222,13 +1222,9 @@ function setDates() {
 
 window.onclick = e => { if (e.target.classList.contains('modal')) e.target.classList.remove('active'); };
 
-loadData().then(() => {
-    setDates();
-    renderAll();
-}).catch(() => {
-    setDates();
-    renderAll();
-});
+loadData();
+setDates();
+renderAll();
 setTimeout(checkAiStatus, 2000);
 </script>
 </body>
