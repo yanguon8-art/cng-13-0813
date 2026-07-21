@@ -520,20 +520,18 @@ const catNames = { fuel:'ফুয়েল', oil:'তেল', parts:'পার�
 const catIcons = { fuel:'⛽', oil:'🛢️', parts:'🔧', tire:'🛞', servicing:'🛠️', document:'📋', insurance:'🛡️', fine:'⚠️', other:'📌' };
 
 let data = { income: [], expenses: [] };
-let saveStatus = 'saved'; // 'saved' | 'saving' | 'error'
-let saveTimer = null;
-let lastSaved = '';
+let saveStatus = 'saved';
+let isSaving = false;
+let pendingSave = null;
 
-// ==================== 📦 FAST + SECURE + ACCURATE DATA SYSTEM ====================
+// ==================== 📦 RELIABLE SAVE SYSTEM ====================
 
-// Generate simple checksum for integrity
 function checksum(obj) {
     let s = JSON.stringify(obj), h = 0;
     for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i) | 0;
     return h;
 }
 
-// Validate data before save
 function validateData(inc, exp) {
     if (!Array.isArray(inc) || !Array.isArray(exp)) return false;
     for (const i of inc) { if (!i.date || typeof i.amount !== 'number') return false; }
@@ -541,40 +539,45 @@ function validateData(inc, exp) {
     return true;
 }
 
-// Save with debounce (prevents rapid multiple saves)
-function saveData() {
-    if (!validateData(data.income, data.expenses)) { console.warn('[DATA] Invalid data, save blocked'); return; }
-
-    // LOCAL: Triple backup + checksum
-    const saveObj = {
-        v: 2, // version
-        income: data.income,
-        expenses: data.expenses,
-        cs: checksum({ income: data.income, expenses: data.expenses }),
-        ts: Date.now()
-    };
-    const str = JSON.stringify(saveObj);
-
-    // Main + 2 backups (rotating)
+// Save to localStorage (instant)
+function saveLocal() {
+    const obj = { v: 2, income: data.income, expenses: data.expenses, cs: checksum({income:data.income, expenses:data.expenses}), ts: Date.now() };
+    const str = JSON.stringify(obj);
     localStorage.setItem('cngMain', str);
     const b1 = localStorage.getItem('cngBak1');
     if (b1) localStorage.setItem('cngBak2', b1);
     localStorage.setItem('cngBak1', str);
+}
 
-    // Update status
+// Save to server (with queue + retry)
+function saveServer() {
+    if (isSaving) { pendingSave = true; return; } // Queue if busy
+    isSaving = true;
     saveStatus = 'saving'; updateSaveUI();
-    lastSaved = new Date().toLocaleTimeString();
 
-    // SERVER: Debounced (300ms) to avoid spam during rapid edits
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-        fetch('/api/data', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ income: data.income, expenses: data.expenses })
-        })
-        .then(r => { if (r.ok) { saveStatus = 'saved'; updateSaveUI(); } else { saveStatus = 'error'; updateSaveUI(); } })
-        .catch(() => { saveStatus = 'error'; updateSaveUI(); });
-    }, 300);
+    fetch('/api/data', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ income: data.income, expenses: data.expenses }),
+        keepalive: true // Ensures request completes even on page close
+    })
+    .then(r => {
+        if (r.ok) { saveStatus = 'saved'; updateSaveUI(); }
+        else { saveStatus = 'error'; updateSaveUI(); }
+        isSaving = false;
+        if (pendingSave) { pendingSave = false; saveServer(); } // Process queued save
+    })
+    .catch(() => {
+        saveStatus = 'error'; updateSaveUI();
+        isSaving = false;
+        if (pendingSave) { pendingSave = false; saveServer(); }
+    });
+}
+
+// Main save function
+function saveData() {
+    if (!validateData(data.income, data.expenses)) return;
+    saveLocal(); // Always save locally first (instant)
+    saveServer(); // Server save (with queue)
 }
 
 // Load with auto-recovery from corruption
