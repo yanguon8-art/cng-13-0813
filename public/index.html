@@ -727,52 +727,6 @@ function createSampleData() {
     saveData();
 }
 
-// Export all data as downloadable file
-function exportFullData() {
-    const str = localStorage.getItem(DATA_KEYS.main);
-    if (!str) { toast('❌ কোনো ডাটা নেই'); return; }
-    const blob = new Blob([str], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `CNG-13-0813-BACKUP-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast('📥 ডাটা ব্যাকআপ ডাউনলোড হয়েছে');
-}
-
-// Import data from file
-function importFullData() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            try {
-                const imported = JSON.parse(ev.target.result);
-                if (isValidData(imported)) {
-                    if (confirm('ইম্পোর্ট করলে বর্তমান ডাটা রিপ্লেস হবে। নিশ্চিত?')) {
-                        data.income = imported.income;
-                        data.expenses = imported.expenses;
-                        saveData();
-                        renderAll();
-                        toast('✅ ডাটা ইম্পোর্ট হয়েছে');
-                    }
-                } else {
-                    toast('❌ ভ্যালিড ডাটা ফাইল নয়');
-                }
-            } catch(e) {
-                toast('❌ ফাইল পড়া যায়নি');
-            }
-        };
-        reader.readAsText(file);
-    };
-    input.click();
-}
-
 // ==================== UI ====================
 function showTab(tab) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
