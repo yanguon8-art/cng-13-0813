@@ -1225,6 +1225,9 @@ function setDates() {
 
 window.onclick = e => { if (e.target.classList.contains('modal')) e.target.classList.remove('active'); };
 
+// ⚡ Server injects real data here (replaces the string below)
+const __SERVER_DATA__ = "__SERVER_DATA__";
+
 loadData();
 setDates();
 renderAll();
